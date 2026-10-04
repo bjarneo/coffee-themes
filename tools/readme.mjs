@@ -39,6 +39,8 @@ const variantTable = VARIANTS.map(v => {
 
 const RECIPE = { drink: 'the recipe', roast: 'the roast curve', cherry: 'a coffee cherry in cross-section' };
 
+const signatures = themes.filter(t => t.signature).map(t => `[${t.name}](#${anchor(t.name)})`).join(', ');
+
 const menu = Object.entries(CATEGORIES).map(([key, label]) => {
   const list = themes.filter(t => t.cat === key);
   return `| ${label} | ${list.map(t => `[${t.name}](#${anchor(t.name)})`).join(', ')} |`;
@@ -57,7 +59,7 @@ ${list.map(t => {
       const a = t.variants[v.key].ansi;
       return `| ${v.label} | ${a.slice(0, 8).map(h => `\`${h}\``).join(' ')} | ${a.slice(8).map(h => `\`${h}\``).join(' ')} |`;
     }).join('\n');
-    const origin = t.origin ? ` · Origin: ${t.origin}` : '';
+    const origin = (t.signature ? ' · Signature palette' : '') + (t.origin ? ` · Origin: ${t.origin}` : '');
     return `### ${t.name}
 
 [![${t.name} at night and in the day](site/assets/shots/${t.slug}/pair.webp)](${SITE}/#${t.slug})
@@ -94,6 +96,7 @@ This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso
 
 - Site: [${SITE.replace('https://', '')}](${SITE})
 - Promo video: [\`site/assets/promo.mp4\`](site/assets/promo.mp4), all 82 drinks, one per beat
+- Screenshots: real captures of an Omarchy desktop with each variant applied
 - Backgrounds: 820 at 6K, 6144×3456
 
 ## Variants
@@ -103,6 +106,14 @@ This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso
 ${variantTable}
 
 The contrast columns show the lowest WCAG contrast ratio against the background, over all 82 themes. The script raises or lowers the lightness of each color until it reaches its target. The 6 main ANSI colors reach at least 4.5:1, the WCAG AA level. The muted color for comments reaches at least 3.8:1. Each variant is a complete Omarchy theme with its own folder, so you can install any mix of them.
+
+## Signature palettes
+
+${themes.filter(t => t.signature).length} drinks use a signature palette. Like Osaka Jade and Miasma in Omarchy, they fill the 6 ANSI slots with the colors of the drink, so a slot can hold a color that is not its name. The yellow of Cold Brew is coffee amber, the blue of Pumpkin Spice Latte is pumpkin, and the roast levels use the browns of their roast. The other drinks keep a classic palette, where red is red and blue is blue.
+
+The contrast targets above apply to both kinds. A check also keeps the 6 slots apart, so no 2 slots look the same.
+
+Signature palettes: ${signatures}.
 
 ## Backgrounds
 
@@ -207,14 +218,14 @@ ${sections}
 
 ## How the themes are made
 
-The scripts in [\`tools/\`](tools/) make every file in this repo. They need Node.js 22 or later, Chromium, ImageMagick and ffmpeg.
+The scripts in [\`tools/\`](tools/) make every file in this repo. They need Node.js 22 or later, Chromium, ImageMagick and ffmpeg. \`tools/capture.sh\` also needs Omarchy, Hyprland and grim.
 
 | Script | Output |
 | --- | --- |
 | \`tools/palettes.mjs\` | The drink table and the color math. Every other script reads it. |
 | \`tools/build.mjs\` | \`colors.toml\` and \`icons.theme\` of each variant, and \`site/assets/themes.js\` |
 | \`tools/render.mjs\` | The 5 backgrounds of each variant at 6K. \`tools/render.html\` draws them on a canvas. |
-| \`tools/preview.mjs\` | \`preview.png\` of each variant and the site screenshots. \`tools/preview.html\` draws an Omarchy desktop. |
+| \`tools/capture.sh\` | \`preview.png\` of each variant and the site screenshots. It applies each variant on this desktop and takes a screenshot of workspace 8. |
 | \`tools/assets.mjs\` | The site previews, the thumbnails, the Aether copies and the mosaic |
 | \`tools/promo.mjs\` | \`site/assets/promo.mp4\`. \`tools/promo.html\` draws the frames. |
 | \`tools/readme.mjs\` | This README |
@@ -224,13 +235,15 @@ To build everything again, run the scripts in this order:
 \`\`\`bash
 node tools/build.mjs
 node tools/render.mjs
-node tools/preview.mjs
+tools/capture.sh
 node tools/assets.mjs
 node tools/promo.mjs song.mp3
 node tools/readme.mjs
 \`\`\`
 
-To change a drink, edit its row in \`tools/palettes.mjs\`, then run the scripts with the theme name, for example \`node tools/render.mjs mocha\`.
+\`tools/capture.sh\` takes about 25 minutes. It changes the theme of the desktop 164 times and shows workspace 8 the whole time. Open the windows that you want in the screenshots on workspace 8 first. If you switch to another workspace, the script stops and restores your theme. Run it again to continue where it stopped.
+
+To change a drink, edit its row in \`tools/palettes.mjs\`, then run the scripts with the theme name, for example \`node tools/render.mjs mocha\` and \`tools/capture.sh mocha\`.
 
 The site in [\`site/\`](site/) is a static page. The workflow in \`.github/workflows/pages.yml\` copies \`install.sh\` and every \`colors.toml\` into it and publishes it to GitHub Pages.
 `;

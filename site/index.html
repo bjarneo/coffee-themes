@@ -115,7 +115,7 @@ h1 em { font-style: italic; color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { filter: brightness(1.08); }
 .mosaic { margin: 0; border-radius: 18px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .55); background: var(--surface); }
-.mosaic img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.mosaic img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; }
 @media (max-width: 1000px) { .hero { grid-template-columns: 1fr; } }
 
 /* Code */
@@ -289,12 +289,12 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
           <a class="btn" href="https://github.com/bjarneo/coffee-themes">View on GitHub</a>
         </div>
       </div>
-      <figure class="mosaic"><img src="assets/mosaic.jpg" alt="All 164 themes applied to the same desktop, from the darkest night to the lightest day." width="1920" height="1080"></figure>
+      <figure class="mosaic"><img src="assets/mosaic.jpg" alt="All 164 themes applied to the same desktop, from the darkest night to the lightest day." width="2080" height="1300"></figure>
     </div>
 
     <section id="video" aria-labelledby="video-title">
       <h2 id="video-title">Every drink, <em>night and day</em></h2>
-      <p class="sub">All 82 drinks, one per beat. Each clip starts at night and pours into day. The music is a calm lo-fi track made with musicmaker.</p>
+      <p class="sub">All 82 drinks, one per beat. Each clip is a real screenshot of an Omarchy desktop with the theme applied, and each clip starts at night and pours into day. The music is a calm lo-fi track made with musicmaker.</p>
       <video class="video" controls playsinline preload="metadata" poster="assets/mosaic.jpg" src="assets/promo.mp4"></video>
     </section>
 
@@ -548,6 +548,8 @@ function show(vw) {
   $('d-img').src = imageFor(t);
   const label = views(t).find(x => x.key === vw).label;
   $('d-img').alt = vw === 'shot' ? `${v.name} applied to a desktop` : `${v.name}, ${label.toLowerCase()} background`;
+  // Screenshots have the 16:10 shape of the screen. Backgrounds are 16:9.
+  $('d-img').style.aspectRatio = vw === 'shot' ? '16 / 10' : '16 / 9';
   $('d-tabs').querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.view === vw));
 }
 function open(i, vkey = dvariant) {
@@ -563,7 +565,7 @@ function open(i, vkey = dvariant) {
   $('d-num').textContent = `${pad(t.index)} / ${T.length} · ${category}${t.origin ? ` · ${t.origin}` : ''}`;
   $('d-name').textContent = v.name;
   $('d-desc').textContent = t.desc;
-  $('d-meta').innerHTML = [['Theme name', v.install], ['Background', c.background], ['Foreground', c.foreground], ['Accent', c.accent], ['Second', v.second], ['Icons', v.icons]]
+  $('d-meta').innerHTML = [['Theme name', v.install], ['Palette', t.signature ? 'Signature' : 'Classic'], ['Background', c.background], ['Foreground', c.foreground], ['Accent', c.accent], ['Second', v.second], ['Icons', v.icons]]
     .map(([k, val]) => `<dt>${k}</dt><dd>${val.startsWith('#') ? `<span style="color:${val}">■</span> ${val}` : esc(val)}</dd>`).join('');
   $('d-sw').innerHTML = v.ansi.map((h, k) => `<button class="sw" data-hex="${h}" title="${k > 7 ? 'bright ' : ''}${NAMES[k % 8]} ${h}"><i style="background:${h}"></i><span>${h.slice(1)}</span></button>`).join('');
   const flag = ` --variant ${dvariant}`;

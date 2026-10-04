@@ -1,5 +1,6 @@
 // Renders site/assets/promo.mp4: the 5 backgrounds, night and day, then
 // every drink, one per beat. Each beat starts at night and pours into day.
+// The clips are the real screenshots from tools/capture.sh.
 //
 //   node tools/promo.mjs <song.mp3>
 //
@@ -8,7 +9,7 @@
 //   FIRST_BEAT time of the first beat in seconds (default 0.813)
 //   URL        text on the outro card
 //
-// Run tools/render.mjs, tools/preview.mjs and tools/assets.mjs first.
+// Run tools/render.mjs, tools/capture.sh and tools/assets.mjs first.
 // Needs `chromium` and `ffmpeg`.
 
 import { spawn } from 'node:child_process';

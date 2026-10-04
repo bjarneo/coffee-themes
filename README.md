@@ -6,16 +6,25 @@ This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso
 
 - Site: [bjarneo.github.io/coffee-themes](https://bjarneo.github.io/coffee-themes)
 - Promo video: [`site/assets/promo.mp4`](site/assets/promo.mp4), all 82 drinks, one per beat
+- Screenshots: real captures of an Omarchy desktop with each variant applied
 - Backgrounds: 820 at 6K, 6144×3456
 
 ## Variants
 
 | Variant | Theme name | What it is | Lowest ANSI contrast | Lowest text contrast |
 | --- | --- | --- | --- | --- |
-| Night | `mocha-night` | A dark coffee background with warm colors. For the evening and dim rooms. | 6.2:1 | 12.3:1 |
+| Night | `mocha-night` | A dark coffee background with warm colors. For the evening and dim rooms. | 5.6:1 | 12.3:1 |
 | Day | `mocha-day` | A cream background with the same hues. For bright rooms and daylight. | 4.5:1 | 11.8:1 |
 
 The contrast columns show the lowest WCAG contrast ratio against the background, over all 82 themes. The script raises or lowers the lightness of each color until it reaches its target. The 6 main ANSI colors reach at least 4.5:1, the WCAG AA level. The muted color for comments reaches at least 3.8:1. Each variant is a complete Omarchy theme with its own folder, so you can install any mix of them.
+
+## Signature palettes
+
+45 drinks use a signature palette. Like Osaka Jade and Miasma in Omarchy, they fill the 6 ANSI slots with the colors of the drink, so a slot can hold a color that is not its name. The yellow of Cold Brew is coffee amber, the blue of Pumpkin Spice Latte is pumpkin, and the roast levels use the browns of their roast. The other drinks keep a classic palette, where red is red and blue is blue.
+
+The contrast targets above apply to both kinds. A check also keeps the 6 slots apart, so no 2 slots look the same.
+
+Signature palettes: [Espresso Solo](#espresso-solo), [Ristretto](#ristretto), [Mocha](#mocha), [White Mocha](#white-mocha), [Romano](#romano), [Affogato](#affogato), [Red Eye](#red-eye), [Black Eye](#black-eye), [Dead Eye](#dead-eye), [Siphon](#siphon), [Percolator](#percolator), [Cold Brew](#cold-brew), [Nitro Cold Brew](#nitro-cold-brew), [Turkish Coffee](#turkish-coffee), [Cowboy Coffee](#cowboy-coffee), [Espresso Tonic](#espresso-tonic), [Japanese Iced Coffee](#japanese-iced-coffee), [Greek Frappé](#greek-frappé), [Dalgona Coffee](#dalgona-coffee), [Irish Coffee](#irish-coffee), [Café de Olla](#café-de-olla), [Cà Phê Sữa Đá](#cà-phê-sữa-đá), [Kopi](#kopi), [Yuanyang](#yuanyang), [Galão](#galão), [Wiener Melange](#wiener-melange), [Qahwa](#qahwa), [Bicerin](#bicerin), [Caramel Macchiato](#caramel-macchiato), [Peppermint Mocha](#peppermint-mocha), [Pumpkin Spice Latte](#pumpkin-spice-latte), [Honey Latte](#honey-latte), [Lavender Latte](#lavender-latte), [Dirty Chai](#dirty-chai), [Arabica](#arabica), [Robusta](#robusta), [Liberica](#liberica), [Excelsa](#excelsa), [Cinnamon Roast](#cinnamon-roast), [Light Roast](#light-roast), [City Roast](#city-roast), [Full City Roast](#full-city-roast), [Vienna Roast](#vienna-roast), [French Roast](#french-roast), [Italian Roast](#italian-roast).
 
 ## Backgrounds
 
@@ -58,7 +67,7 @@ cd ~/.local/share/coffee-themes
 omarchy theme set mocha-night
 ```
 
-The full repo is about 1150 MB because it has 820 backgrounds at 6K. To download less, use the `curl` command above. It downloads only the folders that you name.
+The full repo is about 1190 MB because it has 820 backgrounds at 6K. To download less, use the `curl` command above. It downloads only the folders that you name.
 
 ### Options
 
@@ -128,7 +137,7 @@ omarchy theme bg next           # show the next background of the current theme
 
 [![Espresso Solo at night and in the day](site/assets/shots/espresso-solo/pair.webp)](https://bjarneo.github.io/coffee-themes/#espresso-solo)
 
-`01` · Folder: [`espresso-solo/`](espresso-solo/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#espresso-solo)
+`01` · Signature palette · Folder: [`espresso-solo/`](espresso-solo/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#espresso-solo)
 
 A short, strong shot of coffee. The recipe background shows the recipe.
 
@@ -142,8 +151,8 @@ A short, strong shot of coffee. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#261810` `#e48875` `#a1bd77` `#fbb960` `#6db4df` `#d990bd` `#67cbc3` `#d8c6bd` | `#836c60` `#f1a493` `#bad198` `#fed7a6` `#90c9ed` `#e9abd1` `#90dfd8` `#fdf5f1` |
-| Day | `#eeddcc` `#a44937` `#5c762b` `#986303` `#116b96` `#944c7b` `#107a74` `#594a3b` | `#877767` `#923523` `#4a630f` `#7e5101` `#005981` `#83396a` `#0c6560` `#1f1308` |
+| Night | `#261810` `#dd7767` `#c1c37e` `#fec766` `#cea081` `#e299a9` `#9fcfcb` `#d8c6bd` | `#836c60` `#ea9486` `#d6d9a1` `#fee4ba` `#dfb89e` `#f2b4c0` `#bde4e0` `#fdf5f1` |
+| Day | `#eeddcc` `#983124` `#717227` `#7c5700` `#724627` `#944d5f` `#457774` `#594a3b` | `#877767` `#86190f` `#5d5e02` `#664804` `#613513` `#833b4e` `#2f6360` `#1f1308` |
 
 </details>
 
@@ -182,7 +191,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- doppi
 
 [![Ristretto at night and in the day](site/assets/shots/ristretto/pair.webp)](https://bjarneo.github.io/coffee-themes/#ristretto)
 
-`03` · Folder: [`ristretto/`](ristretto/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#ristretto)
+`03` · Signature palette · Folder: [`ristretto/`](ristretto/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#ristretto)
 
 A short pull with less water. It tastes sweeter and stronger. The recipe background shows the recipe.
 
@@ -196,8 +205,8 @@ A short pull with less water. It tastes sweeter and stronger. The recipe backgro
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#26140f` `#ef816b` `#9fbe70` `#faba5d` `#63b5e3` `#e08cbc` `#59cdc9` `#dbc5be` | `#866a62` `#fb9f8c` `#b8d393` `#fed7a5` `#89caf0` `#efa8d0` `#88e0dd` `#fdf5f2` |
-| Day | `#f2dcca` `#af3e2b` `#5a7821` `#96640a` `#0b6b95` `#9a477a` `#0c7a78` `#5b493a` | `#8a7666` `#9d2713` `#476303` `#7d5309` `#03597d` `#893369` `#086563` `#201307` |
+| Night | `#26140f` `#df695c` `#d2bd70` `#ffbc6a` `#d49375` `#e696ae` `#f2daba` `#dbc5be` | `#866a62` `#eb887c` `#e5d496` `#fedbb3` `#e4ac94` `#f5b1c5` `#fdecd4` `#fdf5f2` |
+| Day | `#f2dcca` `#9c1e1a` `#816c07` `#845200` `#793b1c` `#974964` `#574223` `#5b493a` | `#8a7666` `#860307` `#6c5a00` `#6d4400` `#682904` `#853753` `#473211` `#201307` |
 
 </details>
 
@@ -412,7 +421,7 @@ Espresso with thin, velvety microfoam. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#302921` `#d4908c` `#9fbc8b` `#edbe86` `#81b1d5` `#ce97b8` `#7ec6c6` `#d3c9bd` | `#807466` `#e4aaa6` `#b8d1a8` `#fed7a9` `#9fc6e4` `#dfb1cc` `#a0dada` `#fbf6f0` |
+| Night | `#302921` `#d4908c` `#9fbc8b` `#edbe86` `#81b1d5` `#d8a0c1` `#7ec6c6` `#d3c9bd` | `#807466` `#e4aaa6` `#b8d1a8` `#fed7a9` `#9fc6e4` `#e9bad5` `#a0dada` `#fbf6f0` |
 | Day | `#e8dfd2` `#965350` `#597644` `#936527` `#36698c` `#8b5576` `#257a7a` `#554c3f` | `#82796b` `#85413f` `#476331` `#7f5003` `#22587b` `#7a4365` `#086566` `#1c150a` |
 
 </details>
@@ -506,7 +515,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- latte
 
 [![Mocha at night and in the day](site/assets/shots/mocha/pair.webp)](https://bjarneo.github.io/coffee-themes/#mocha)
 
-`15` · Folder: [`mocha/`](mocha/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#mocha)
+`15` · Signature palette · Folder: [`mocha/`](mocha/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#mocha)
 
 A latte with chocolate. The recipe background shows the recipe.
 
@@ -520,8 +529,8 @@ A latte with chocolate. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#301d19` `#e48877` `#a2bd77` `#ecc06a` `#6db4df` `#e08ead` `#66cbc6` `#dbc5bf` | `#886b64` `#f1a495` `#bbd298` `#fdd894` `#90c9ed` `#efaac3` `#90dfda` `#fdf5f2` |
-| Day | `#f2dcca` `#a5483a` `#5d762b` `#8e6703` `#136b96` `#9b4a6c` `#0d7a76` `#5b493a` | `#8a7666` `#933527` `#4a630e` `#765607` `#005981` `#89375b` `#0a6562` `#201308` |
+| Night | `#301d19` `#e07081` `#acc188` `#fdbc6f` `#cf957b` `#e89dc0` `#ecdcc1` `#dbc5bf` | `#886b64` `#ed8e9a` `#c4d6a7` `#fddbb4` `#dfae98` `#f8b8d5` `#faedd6` `#fdf5f2` |
+| Day | `#f2dcca` `#9b2742` `#5f7339` `#9a620b` `#884f35` `#974e73` `#7c6d52` `#5b493a` | `#8a7666` `#890732` `#4e6225` `#825100` `#773d22` `#863b62` `#69593e` `#201308` |
 
 </details>
 
@@ -533,7 +542,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- mocha
 
 [![White Mocha at night and in the day](site/assets/shots/white-mocha/pair.webp)](https://bjarneo.github.io/coffee-themes/#white-mocha)
 
-`16` · Folder: [`white-mocha/`](white-mocha/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#white-mocha)
+`16` · Signature palette · Folder: [`white-mocha/`](white-mocha/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#white-mocha)
 
 A latte with white chocolate. The recipe background shows the recipe.
 
@@ -547,8 +556,8 @@ A latte with white chocolate. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#30291f` `#d49187` `#a1bb89` `#e9bf8a` `#80b1d4` `#cf97b8` `#7ec6c7` `#d3c9bc` | `#817566` `#e4aaa2` `#bad0a6` `#fbd7ac` `#9ec6e4` `#e0b1cc` `#a0dadb` `#fbf6f0` |
-| Day | `#e8dfd1` `#96534b` `#5d7744` `#90672e` `#35698b` `#8b5575` `#257a7b` `#544c3e` | `#82796a` `#84413a` `#49632f` `#7c5211` `#20587b` `#7a4365` `#086567` `#1c150a` |
+| Night | `#30291f` `#dc8c7f` `#bcc490` `#f8dc90` `#c8ab90` `#e7acb3` `#b3d9db` `#d3c9bc` | `#817566` `#eaa79b` `#d3daaf` `#ffedc0` `#dbc2ac` `#f8c6cc` `#cfeff0` `#fbf6f0` |
+| Day | `#e8dfd1` `#93453a` `#6c733e` `#735b01` `#7d6045` `#945b63` `#4e7476` `#544c3e` | `#82796a` `#813228` `#5a6029` `#604b00` `#6b4f34` `#824953` `#3a6264` `#1c150a` |
 
 </details>
 
@@ -614,7 +623,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- con-p
 
 [![Romano at night and in the day](site/assets/shots/romano/pair.webp)](https://bjarneo.github.io/coffee-themes/#romano)
 
-`19` · Folder: [`romano/`](romano/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#romano)
+`19` · Signature palette · Folder: [`romano/`](romano/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#romano)
 
 Espresso with a slice of lemon. The recipe background shows the recipe.
 
@@ -628,8 +637,8 @@ Espresso with a slice of lemon. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#261a11` `#ec8273` `#9ac06f` `#e2c741` `#66b3ec` `#e28aba` `#4cceca` `#d7c7bc` | `#806d5f` `#f8a092` `#b5d492` `#f4de7b` `#8bc9f8` `#f1a6ce` `#81e1dd` `#fcf5f0` |
-| Day | `#ecdecd` `#ac4134` `#55791e` `#816e00` `#09699f` `#9d4578` `#007c79` `#574b3b` | `#857867` `#9a2b20` `#436405` `#6a5a00` `#005787` `#8b3167` `#0c6563` `#1e1408` |
+| Night | `#261a11` `#dc785f` `#a2ce72` `#eee354` `#cfab6d` `#f5ab78` `#a6daaf` `#d7c7bc` | `#806d5f` `#e9957f` `#bde297` `#fbf487` `#e1c391` `#ffc7a2` `#c3eecb` `#fcf5f0` |
+| Day | `#ecdecd` `#973219` `#507b06` `#787003` `#7a5707` `#743800` `#447a51` `#574b3b` | `#857867` `#831e01` `#406500` `#645d02` `#664703` `#5d2c00` `#2f673e` `#1e1408` |
 
 </details>
 
@@ -641,7 +650,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- roman
 
 [![Affogato at night and in the day](site/assets/shots/affogato/pair.webp)](https://bjarneo.github.io/coffee-themes/#affogato)
 
-`20` · Folder: [`affogato/`](affogato/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#affogato)
+`20` · Signature palette · Folder: [`affogato/`](affogato/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#affogato)
 
 Espresso poured over ice cream. The recipe background shows the recipe.
 
@@ -655,8 +664,8 @@ Espresso poured over ice cream. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2a1d14` `#dc8d7e` `#9ebd82` `#ddc67a` `#7ab2dc` `#d693b7` `#71c9c9` `#d8c7bc` | `#826d5f` `#eba89b` `#b8d2a1` `#f0dd9f` `#99c7eb` `#e6aecb` `#97dddd` `#fcf5f1` |
-| Day | `#edddcc` `#9d4e41` `#59773a` `#826b05` `#2b6993` `#915075` `#117b7c` `#584a3b` | `#877767` `#8b3b2e` `#466424` `#6d5900` `#125882` `#803e64` `#0f6667` `#1e1407` |
+| Night | `#2a1d14` `#da8375` `#adc08f` `#f6dd90` `#c9a187` `#e4a2b0` `#b3d9db` `#d8c7bc` | `#826d5f` `#e89e92` `#c5d5ac` `#feeebc` `#dbb9a3` `#f4bcc8` `#cfeff0` `#fcf5f1` |
+| Day | `#edddcc` `#943e32` `#607240` `#846b05` `#80593f` `#945463` `#4e7476` `#584a3b` | `#877767` `#822a20` `#4f612d` `#6f5900` `#6f482d` `#824252` `#3a6264` `#1e1407` |
 
 </details>
 
@@ -722,7 +731,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- corre
 
 [![Red Eye at night and in the day](site/assets/shots/red-eye/pair.webp)](https://bjarneo.github.io/coffee-themes/#red-eye)
 
-`23` · Folder: [`red-eye/`](red-eye/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#red-eye)
+`23` · Signature palette · Folder: [`red-eye/`](red-eye/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#red-eye)
 
 Drip coffee with 1 shot of espresso. The recipe background shows the recipe.
 
@@ -736,8 +745,8 @@ Drip coffee with 1 shot of espresso. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#291917` `#f9786a` `#9bc063` `#ffb850` `#56b5f0` `#e886bc` `#33d0cd` `#dac5c1` | `#846b66` `#ff9c8f` `#b5d489` `#fdd7a6` `#80cafb` `#f6a4d0` `#75e3e0` `#fdf4f3` |
-| Day | `#f0dcce` `#b73129` `#567900` `#976403` `#0c6a9a` `#a13f7a` `#077a79` `#5a493d` | `#897669` `#a51011` `#476404` `#7d5200` `#005882` `#8f2969` `#016564` `#201309` |
+| Night | `#291917` `#e65e59` `#99c68f` `#ffa659` `#e1878e` `#f18db5` `#fccabd` `#dac5c1` | `#846b66` `#f3827a` `#b5daad` `#fec79c` `#efa3a8` `#ffaacb` `#fee9e4` `#fdf4f3` |
+| Day | `#f0dcce` `#9e0016` `#4a7840` `#a15800` `#973f4a` `#8d2b59` `#916256` `#5a493d` | `#897669` `#820010` `#37652c` `#894a00` `#852b39` `#7b1249` `#7e4f43` `#201309` |
 
 </details>
 
@@ -749,7 +758,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- red-e
 
 [![Black Eye at night and in the day](site/assets/shots/black-eye/pair.webp)](https://bjarneo.github.io/coffee-themes/#black-eye)
 
-`24` · Folder: [`black-eye/`](black-eye/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#black-eye)
+`24` · Signature palette · Folder: [`black-eye/`](black-eye/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#black-eye)
 
 Drip coffee with 2 shots of espresso. The recipe background shows the recipe.
 
@@ -763,8 +772,8 @@ Drip coffee with 2 shots of espresso. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#1f1924` `#eb8372` `#8ec372` `#f0bf59` `#60b3f0` `#d08fda` `#3acfd2` `#cfc7d6` | `#776d7f` `#f8a091` `#abd795` `#ffd88d` `#87c9fb` `#e1abe9` `#78e2e4` `#f9f5fc` |
-| Day | `#e5dced` `#ac4133` `#467a22` `#8c680b` `#0269a1` `#8c4a97` `#027b7e` `#524959` | `#7f7687` `#9a2c1e` `#316700` `#765600` `#035787` `#7b3786` `#006669` `#19131f` |
+| Night | `#1f1924` `#dd7aa2` `#94c5a4` `#efcc83` `#9d9be7` `#d695e4` `#b4cbf9` `#cfc7d6` | `#776d7f` `#ea97b8` `#b1d9bd` `#fee5b1` `#b4b3f3` `#e7b1f3` `#d4e2ff` `#f9f5fc` |
+| Day | `#e5dced` `#953260` `#447757` `#8c690a` `#5a54a0` `#894798` `#596e9b` `#524959` | `#7f7687` `#831b50` `#2f6544` `#745600` `#4a428f` `#783487` `#455a87` `#19131f` |
 
 </details>
 
@@ -776,7 +785,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- black
 
 [![Dead Eye at night and in the day](site/assets/shots/dead-eye/pair.webp)](https://bjarneo.github.io/coffee-themes/#dead-eye)
 
-`25` · Folder: [`dead-eye/`](dead-eye/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#dead-eye)
+`25` · Signature palette · Folder: [`dead-eye/`](dead-eye/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#dead-eye)
 
 Drip coffee with 3 shots of espresso. The recipe background shows the recipe.
 
@@ -790,8 +799,8 @@ Drip coffee with 3 shots of espresso. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#111913` `#f37c70` `#7ac775` `#fdb947` `#59b2fa` `#e585c8` `#1ad0d5` `#c2cec4` | `#67766a` `#ff9b8f` `#9cda97` `#ffd79d` `#89c8fe` `#f3a3d9` `#68e4e7` `#f2f9f3` |
-| Day | `#d8e4da` `#b33831` `#297f27` `#956500` `#0468a5` `#9f3e85` `#007b7e` `#445146` | `#6f7d71` `#a01f1d` `#016b04` `#7d5400` `#02568b` `#8d2974` `#0c6668` `#0f1911` |
+| Night | `#111913` `#d67069` `#81ce70` `#cedc69` `#6bb797` `#d4bc79` `#77e0d3` `#c2cec4` | `#67766a` `#e38d86` `#a2e194` `#e5f297` `#8ecaaf` `#e7d39d` `#a1f4e8` `#f2f9f3` |
+| Day | `#d8e4da` `#942b2b` `#297f0e` `#6c7501` `#117152` `#7a6110` `#006058` `#445146` | `#6f7d71` `#821118` `#1d6a00` `#586000` `#005f43` `#675000` `#004e47` `#0f1911` |
 
 </details>
 
@@ -940,7 +949,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- cheme
 
 [![Siphon at night and in the day](site/assets/shots/siphon/pair.webp)](https://bjarneo.github.io/coffee-themes/#siphon)
 
-`31` · Folder: [`siphon/`](siphon/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#siphon)
+`31` · Signature palette · Folder: [`siphon/`](siphon/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#siphon)
 
 Vapor pressure and a vacuum brew the coffee. The recipe background shows the recipe.
 
@@ -954,8 +963,8 @@ Vapor pressure and a vacuum brew the coffee. The recipe background shows the rec
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#171f28` `#ec8279` `#91c26d` `#f8bb5b` `#51b6ee` `#e08ac4` `#2fcfd7` `#c1ccd9` | `#667383` `#f99f97` `#add691` `#fed7a0` `#7dcbfa` `#efa6d7` `#74e2e8` `#f2f7fe` |
-| Day | `#d6e2f1` `#ac403b` `#497a19` `#936402` `#0d6b96` `#9b4482` `#067b80` `#434e5c` | `#707b8b` `#9a2a29` `#386600` `#7b5304` `#03597f` `#893071` `#01666b` `#0e1721` |
+| Night | `#171f28` `#e68485` `#82c8b0` `#f4ca84` `#77a4f6` `#b5a4ea` `#78d9fe` `#c1ccd9` | `#667383` `#f3a1a0` `#a3dcc7` `#fee4ba` `#97bbfd` `#cabdf7` `#bbeafd` `#f2f7fe` |
+| Day | `#d6e2f1` `#9c3b40` `#2a7a62` `#90670e` `#315cae` `#6c599e` `#077797` `#434e5c` | `#707b8b` `#8a262f` `#046750` `#785402` `#1f499e` `#5c478d` `#00637e` `#0e1721` |
 
 </details>
 
@@ -994,7 +1003,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- moka-
 
 [![Percolator at night and in the day](site/assets/shots/percolator/pair.webp)](https://bjarneo.github.io/coffee-themes/#percolator)
 
-`33` · Folder: [`percolator/`](percolator/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#percolator)
+`33` · Signature palette · Folder: [`percolator/`](percolator/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#percolator)
 
 The pot cycles boiling water through the grounds again and again. The recipe background shows the recipe.
 
@@ -1008,8 +1017,8 @@ The pot cycles boiling water through the grounds again and again. The recipe bac
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#18222a` `#e48680` `#98bf77` `#f5bb6e` `#6db2e8` `#dc8ebd` `#56cdcb` `#bfccd8` | `#637482` `#f1a29c` `#b2d397` `#ffd6a3` `#90c8f5` `#ebaad0` `#86e0de` `#f1f8fd` |
-| Day | `#d3e2f0` `#a54744` `#53792b` `#986402` `#14699f` `#974a7a` `#087c7a` `#414f5b` | `#6d7c8a` `#933332` `#40660f` `#7e5203` `#005789` `#853769` `#026665` `#0c1721` |
+| Night | `#18222a` `#e6857e` `#8ac8a6` `#f4ca84` `#67aaed` `#b2b2e3` `#a2daf6` `#bfccd8` | `#637482` `#f3a29a` `#a9dcc0` `#fee4ba` `#8ac0f8` `#c9c9f3` `#cceeff` `#f1f8fd` |
+| Day | `#d3e2f0` `#9c3c38` `#367959` `#90670e` `#1162a6` `#656494` `#3a7691` `#414f5b` | `#6d7c8a` `#8a2727` `#1f6847` `#785402` `#03518d` `#555283` `#20627d` `#0c1721` |
 
 </details>
 
@@ -1021,7 +1030,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- perco
 
 [![Cold Brew at night and in the day](site/assets/shots/cold-brew/pair.webp)](https://bjarneo.github.io/coffee-themes/#cold-brew)
 
-`34` · Folder: [`cold-brew/`](cold-brew/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cold-brew)
+`34` · Signature palette · Folder: [`cold-brew/`](cold-brew/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cold-brew)
 
 Coffee that steeps in cold water for 12 to 24 hours. The recipe background shows the recipe.
 
@@ -1035,8 +1044,8 @@ Coffee that steeps in cold water for 12 to 24 hours. The recipe background shows
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#141b23` `#dc8c82` `#96bf81` `#eebe7c` `#67b6dd` `#d692bc` `#64cacf` `#c1ccd7` | `#667381` `#eba79e` `#b1d3a0` `#fed7a1` `#8ccbeb` `#e6add0` `#8edee2` `#f2f7fd` |
-| Day | `#d7e2ed` `#9e4e46` `#4f7939` `#946614` `#0c6c91` `#914f7a` `#0a7b80` `#434e5a` | `#707c88` `#8c3b34` `#3c6623` `#7c5308` `#065a7a` `#803c69` `#09666b` `#0e1720` |
+| Night | `#141b23` `#d78e88` `#85cfbb` `#f8c885` `#73b1e6` `#aeb3e4` `#81daef` `#c1ccd7` | `#667381` `#e6a8a2` `#a7e3d2` `#ffe3be` `#94c7f3` `#c6caf3` `#adeefe` `#f2f7fd` |
+| Day | `#d7e2ed` `#8f4843` `#267c69` `#936513` `#21689c` `#616595` `#07798d` `#434e5a` | `#707c88` `#7e3632` `#086755` `#7c5409` `#00568b` `#505484` `#056576` `#0e1720` |
 
 </details>
 
@@ -1048,7 +1057,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- cold-
 
 [![Nitro Cold Brew at night and in the day](site/assets/shots/nitro-cold-brew/pair.webp)](https://bjarneo.github.io/coffee-themes/#nitro-cold-brew)
 
-`35` · Folder: [`nitro-cold-brew/`](nitro-cold-brew/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#nitro-cold-brew)
+`35` · Signature palette · Folder: [`nitro-cold-brew/`](nitro-cold-brew/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#nitro-cold-brew)
 
 Cold brew with nitrogen gas. It has a creamy texture. The recipe background shows the recipe.
 
@@ -1062,8 +1071,8 @@ Cold brew with nitrogen gas. It has a creamy texture. The recipe background show
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#191c21` `#dc8b85` `#94c084` `#e6c27a` `#77b1e2` `#d493bf` `#66cacc` `#c5cbd5` | `#6c727d` `#eaa6a0` `#b0d4a2` `#f7da9f` `#97c7f0` `#e4aed2` `#8fdedf` `#f3f7fe` |
-| Day | `#dbe0ec` `#9e4d49` `#4e793c` `#8c6809` `#286899` `#8f4f7d` `#117b7d` `#484d57` | `#757a86` `#8c3b37` `#3a6626` `#755701` `#0c5788` `#7e3d6c` `#0f6668` `#12161e` |
+| Night | `#191c21` `#d1947f` `#a0caad` `#f5daaa` `#89afd6` `#bcb1d3` `#9fd4e6` `#c5cbd5` | `#6c727d` `#e1ad9b` `#bcdfc7` `#ffeccb` `#a6c5e5` `#d2c8e5` `#bee9f8` `#f3f7fe` |
+| Day | `#dbe0ec` `#894e39` `#4d775c` `#856b39` `#40668d` `#6f6385` `#225c6c` `#484d57` | `#757a86` `#783c27` `#396549` `#715721` `#2e557c` `#5e5274` `#074b5c` `#12161e` |
 
 </details>
 
@@ -1075,7 +1084,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- nitro
 
 [![Turkish Coffee at night and in the day](site/assets/shots/turkish-coffee/pair.webp)](https://bjarneo.github.io/coffee-themes/#turkish-coffee)
 
-`36` · Folder: [`turkish-coffee/`](turkish-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#turkish-coffee)
+`36` · Signature palette · Folder: [`turkish-coffee/`](turkish-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#turkish-coffee)
 
 Very fine grounds boiled in a cezve and not filtered. The recipe background shows the recipe.
 
@@ -1089,8 +1098,8 @@ Very fine grounds boiled in a cezve and not filtered. The recipe background show
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#28170f` `#eb846b` `#9fbe6b` `#f0bf58` `#69b2ec` `#e18bbe` `#4bcecd` `#dac6bc` | `#856b5f` `#f8a18c` `#b8d38f` `#fed88d` `#8dc8f8` `#f0a7d1` `#80e1e0` `#fdf5f1` |
-| Day | `#f1dcc9` `#ab432b` `#5a7817` `#8c680b` `#0669a3` `#9b457c` `#137b7b` `#5b4939` | `#897765` `#992d13` `#486306` `#765600` `#075788` `#89316b` `#0e6666` `#1f1307` |
+| Night | `#28170f` `#e67d58` `#88c99e` `#f8c970` `#6fa7ee` `#e5848c` `#6cd9d8` `#dac6bc` | `#856b5f` `#f29a7b` `#a8ddb9` `#ffe4b4` `#8fbdf9` `#f3a0a6` `#98edec` `#fdf5f1` |
+| Day | `#f1dcc9` `#9f3300` `#347a51` `#8f6807` `#2460a7` `#9b3a48` `#0b7b7b` `#5b4939` | `#897765` `#842a00` `#19673e` `#765508` `#094e96` `#892537` `#086666` `#1f1307` |
 
 </details>
 
@@ -1102,7 +1111,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- turki
 
 [![Cowboy Coffee at night and in the day](site/assets/shots/cowboy-coffee/pair.webp)](https://bjarneo.github.io/coffee-themes/#cowboy-coffee)
 
-`37` · Folder: [`cowboy-coffee/`](cowboy-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cowboy-coffee)
+`37` · Signature palette · Folder: [`cowboy-coffee/`](cowboy-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cowboy-coffee)
 
 Grounds boiled in a pot of water. The recipe background shows the recipe.
 
@@ -1116,8 +1125,8 @@ Grounds boiled in a pot of water. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#211613` `#f87963` `#99c164` `#f6bd43` `#54b5f1` `#e786bf` `#30d1c9` `#d7c6c1` | `#806c66` `#fe9c8a` `#b3d58a` `#ffd88f` `#7fcafc` `#f5a4d2` `#74e4dd` `#fdf5f2` |
-| Day | `#ebded2` `#b7321f` `#537a00` `#8d6804` `#056a9b` `#a13f7d` `#007b76` `#574a3f` | `#86776b` `#a51300` `#446401` `#765605` `#075881` `#8f2a6c` `#0d6662` `#1e140b` |
+| Night | `#211613` `#e2684a` `#a0bc86` `#ffbc64` `#7fafe2` `#d5848a` `#fdd5b7` `#d7c6c1` | `#806c66` `#ee876e` `#b9d1a4` `#fedbb0` `#9dc5ef` `#e39fa3` `#feeadb` `#fdf5f2` |
+| Day | `#ebded2` `#9a2501` `#567039` `#996300` `#346698` `#8f3f49` `#825d3f` `#574a3f` | `#86776b` `#7f1b00` `#455f26` `#7f5100` `#1f5587` `#7d2c38` `#714c2d` `#1e140b` |
 
 </details>
 
@@ -1212,7 +1221,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- shake
 
 [![Espresso Tonic at night and in the day](site/assets/shots/espresso-tonic/pair.webp)](https://bjarneo.github.io/coffee-themes/#espresso-tonic)
 
-`41` · Folder: [`espresso-tonic/`](espresso-tonic/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#espresso-tonic)
+`41` · Signature palette · Folder: [`espresso-tonic/`](espresso-tonic/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#espresso-tonic)
 
 Espresso poured over tonic water. The recipe background shows the recipe.
 
@@ -1226,8 +1235,8 @@ Espresso poured over tonic water. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#132122` `#ec8279` `#85c574` `#d9cb53` `#65b1f8` `#e089c6` `#22d0d4` `#bccfd0` | `#5f7778` `#f99f97` `#a4d996` `#ede285` `#90c7fc` `#efa6d8` `#6fe3e6` `#f0f9f9` |
-| Day | `#d1e5e6` `#ac403c` `#3b7e27` `#7b7007` `#0966ab` `#9b4383` `#0a7b7d` `#3d5152` | `#697f80` `#9a2a29` `#226a03` `#665d07` `#035590` `#892f72` `#036668` `#08191a` |
+| Night | `#132122` `#e68677` `#a2ce72` `#ede361` `#65c1d1` `#e0a26f` `#89e5d9` `#bccfd0` | `#5f7778` `#f3a395` `#bde297` `#fbf48f` `#8dd5e2` `#f0bb91` `#b0f9ef` `#f0f9f9` |
+| Day | `#d1e5e6` `#9c3d30` `#507b06` `#787006` `#067482` `#935619` `#006058` `#3d5152` | `#697f80` `#8a281d` `#406500` `#645d05` `#09616d` `#804500` `#034d47` `#08191a` |
 
 </details>
 
@@ -1239,7 +1248,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- espre
 
 [![Japanese Iced Coffee at night and in the day](site/assets/shots/japanese-iced-coffee/pair.webp)](https://bjarneo.github.io/coffee-themes/#japanese-iced-coffee)
 
-`42` · Folder: [`japanese-iced-coffee/`](japanese-iced-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#japanese-iced-coffee)
+`42` · Signature palette · Folder: [`japanese-iced-coffee/`](japanese-iced-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#japanese-iced-coffee)
 
 Hot coffee brewed directly onto ice. The recipe background shows the recipe.
 
@@ -1253,8 +1262,8 @@ Hot coffee brewed directly onto ice. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#171f26` `#f47d68` `#8cc371` `#edc158` `#66b1f5` `#e089c4` `#2fcfd5` `#c0cdd6` | `#647480` `#fd9d8c` `#a9d794` `#fed988` `#8ec7fd` `#efa6d6` `#73e2e6` `#f1f8fd` |
-| Day | `#d5e2ec` `#b33827` `#437b21` `#8a690a` `#0067ab` `#9b4481` `#067b7f` `#414f59` | `#6e7d87` `#a11e0c` `#306803` `#745700` `#005690` `#893071` `#00666a` `#0d171f` |
+| Night | `#171f26` `#e36650` `#a0c398` `#efcc83` `#86a4e4` `#eb9dbb` `#99d5ed` `#c0cdd6` | `#647480` `#ee8672` `#bbd8b4` `#fee5b1` `#a1bbf0` `#fab8d1` `#b9eaff` `#f1f8fd` |
+| Day | `#d5e2ec` `#a01700` `#52754b` `#8c690a` `#415d9d` `#994d6d` `#35768e` `#414f59` | `#6e7d87` `#831200` `#416439` `#765702` `#304b8c` `#873a5c` `#1b637b` `#0d171f` |
 
 </details>
 
@@ -1266,7 +1275,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- japan
 
 [![Greek Frappé at night and in the day](site/assets/shots/greek-frappe/pair.webp)](https://bjarneo.github.io/coffee-themes/#greek-frappe)
 
-`43` · Folder: [`greek-frappe/`](greek-frappe/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#greek-frappe)
+`43` · Signature palette · Folder: [`greek-frappe/`](greek-frappe/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#greek-frappe)
 
 Instant coffee shaken into a thick foam. The recipe background shows the recipe.
 
@@ -1280,8 +1289,8 @@ Instant coffee shaken into a thick foam. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#17212d` `#ec817b` `#89c472` `#eac258` `#62b2f5` `#e089c5` `#29cfd7` `#bfccda` | `#637385` `#f89f98` `#a7d895` `#fbda88` `#8bc8fd` `#efa6d7` `#71e2e8` `#f2f7fd` |
-| Day | `#d2e2f4` `#ac403e` `#407d24` `#886a09` `#0967a6` `#9b4382` `#127a7f` `#404f5e` | `#6d7c8c` `#9a2a2c` `#296900` `#725800` `#05568b` `#892f71` `#0a666a` `#0c1722` |
+| Night | `#17212d` `#e6857e` `#82c8b0` `#f7dba1` `#64a9f3` `#87c8e8` `#79e4f0` `#bfccda` | `#637385` `#f3a29a` `#a3dcc7` `#feedc9` `#88bffd` `#a8ddf8` `#aef6ff` `#f2f7fd` |
+| Day | `#d2e2f4` `#9c3c38` `#2a7a62` `#866b2d` `#0b61ac` `#2e7796` `#0b6870` `#404f5e` | `#6d7c8c` `#8a2727` `#046750` `#745813` `#045091` `#0b6382` `#0b555c` `#0c1722` |
 
 </details>
 
@@ -1293,7 +1302,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- greek
 
 [![Dalgona Coffee at night and in the day](site/assets/shots/dalgona-coffee/pair.webp)](https://bjarneo.github.io/coffee-themes/#dalgona-coffee)
 
-`44` · Folder: [`dalgona-coffee/`](dalgona-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#dalgona-coffee)
+`44` · Signature palette · Folder: [`dalgona-coffee/`](dalgona-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#dalgona-coffee)
 
 Whipped instant coffee on top of milk. The recipe background shows the recipe.
 
@@ -1307,8 +1316,8 @@ Whipped instant coffee on top of milk. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2f2218` `#e48685` `#9ebe76` `#f8ba6b` `#71b2e6` `#da8fbd` `#5fccc7` `#d7c7bb` | `#826f5f` `#f2a2a0` `#b7d397` `#fdd7a9` `#93c7f3` `#eaaad0` `#8bdfdb` `#fcf5f0` |
-| Day | `#eddecc` `#a54649` `#59782a` `#996308` `#1e689c` `#964b7b` `#0e7c78` `#584b3b` | `#867867` `#933237` `#46650e` `#7e5106` `#015788` `#84386a` `#0b6764` `#1e1407` |
+| Night | `#2f2218` `#e1878e` `#b1bf8c` `#fcbe62` `#d59c7d` `#f4acc7` `#eaddc1` `#d7c7bb` | `#826f5f` `#efa3a8` `#c9d4aa` `#fedbad` `#e5b59b` `#fecadd` `#f9edd6` `#fcf5f0` |
+| Day | `#eddecc` `#973f4a` `#64713d` `#976500` `#8a5434` `#9d5874` `#605439` `#584b3b` | `#867867` `#852b39` `#54602a` `#7d5300` `#794220` `#8a4461` `#504328` `#1e1407` |
 
 </details>
 
@@ -1349,7 +1358,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- mazag
 
 [![Irish Coffee at night and in the day](site/assets/shots/irish-coffee/pair.webp)](https://bjarneo.github.io/coffee-themes/#irish-coffee)
 
-`46` · Origin: Ireland · Folder: [`irish-coffee/`](irish-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#irish-coffee)
+`46` · Signature palette · Origin: Ireland · Folder: [`irish-coffee/`](irish-coffee/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#irish-coffee)
 
 Coffee, Irish whiskey, sugar and cream. The recipe background shows the recipe.
 
@@ -1363,8 +1372,8 @@ Coffee, Irish whiskey, sugar and cream. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#141f16` `#ec817a` `#82c57e` `#fbb95e` `#67b2f1` `#e28abe` `#3fced2` `#c1cfc3` | `#667768` `#f89f97` `#a1d99e` `#fed7a5` `#8cc8fc` `#f1a7d1` `#7ae1e4` `#f2f9f3` |
-| Day | `#d5e5d8` `#ac403d` `#367e35` `#97640b` `#0068a7` `#9c447c` `#0d7b7d` `#435245` | `#6f7f72` `#9a2a2b` `#1b6a1c` `#7d5208` `#00578c` `#8a306b` `#076668` `#0e1910` |
+| Night | `#141f16` `#e47d6d` `#76cf8a` `#fcbe62` `#65b090` `#e0a26f` `#95e3d3` `#c1cfc3` | `#667768` `#f19a8c` `#9be2a9` `#fedbad` `#87c3a8` `#f0bb91` `#b8f7ea` `#f2f9f3` |
+| Day | `#d5e5d8` `#9c3428` `#0c7f3b` `#976500` `#0a6d4f` `#8a4d0c` `#07564b` `#435245` | `#6f7f72` `#8a1d13` `#056b2f` `#7d5300` `#045a40` `#733f04` `#07443b` `#0e1910` |
 
 </details>
 
@@ -1511,7 +1520,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- caraj
 
 [![Café de Olla at night and in the day](site/assets/shots/cafe-de-olla/pair.webp)](https://bjarneo.github.io/coffee-themes/#cafe-de-olla)
 
-`52` · Origin: Mexico · Folder: [`cafe-de-olla/`](cafe-de-olla/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cafe-de-olla)
+`52` · Signature palette · Origin: Mexico · Folder: [`cafe-de-olla/`](cafe-de-olla/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cafe-de-olla)
 
 Coffee with cinnamon and piloncillo sugar. The recipe background shows the recipe.
 
@@ -1525,8 +1534,8 @@ Coffee with cinnamon and piloncillo sugar. The recipe background shows the recip
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2d1813` `#ec8274` `#a0be6d` `#fdb674` `#69b3e9` `#e08bbd` `#53cdc8` `#ddc4be` | `#886961` `#f8a093` `#b9d391` `#ffd5af` `#8dc8f6` `#efa7d0` `#84e0dc` `#fdf5f2` |
-| Day | `#f3dbc9` `#ac4136` `#5b771b` `#a25f07` `#0669a0` `#9b467b` `#137b78` `#5c493a` | `#8c7767` `#9a2b22` `#496404` `#874e03` `#085885` `#89336a` `#0d6664` `#201308` |
+| Night | `#2d1813` `#da6d5d` `#abb886` `#ffbc6a` `#cf957b` `#e9979d` `#eddcb9` `#ddc4be` | `#886961` `#e68b7c` `#c2cda4` `#ffdbb2` `#dfae98` `#f8b2b6` `#fbedd0` `#fdf5f2` |
+| Day | `#f3dbc9` `#98271b` `#616d3a` `#9a6208` `#884f35` `#7e303a` `#645432` `#5c493a` | `#8c7767` `#860700` `#505c26` `#7f5005` `#773d22` `#6c1d2a` `#544320` `#201308` |
 
 </details>
 
@@ -1538,7 +1547,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- cafe-
 
 [![Cà Phê Sữa Đá at night and in the day](site/assets/shots/ca-phe-sua-da/pair.webp)](https://bjarneo.github.io/coffee-themes/#ca-phe-sua-da)
 
-`53` · Origin: Vietnam · Folder: [`ca-phe-sua-da/`](ca-phe-sua-da/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#ca-phe-sua-da)
+`53` · Signature palette · Origin: Vietnam · Folder: [`ca-phe-sua-da/`](ca-phe-sua-da/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#ca-phe-sua-da)
 
 Strong iced coffee with condensed milk. The recipe background shows the recipe.
 
@@ -1552,8 +1561,8 @@ Strong iced coffee with condensed milk. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#251810` `#f07f76` `#99c06e` `#ecc158` `#66b3ed` `#e08bc0` `#49cec9` `#d8c7bc` | `#826d5f` `#fc9d95` `#b4d491` `#fdda88` `#8bc9f9` `#efa7d3` `#7fe1dc` `#fcf5f1` |
-| Day | `#e9d9c8` `#af3c38` `#517618` `#866703` `#0769a1` `#9b457e` `#067975` `#584a3b` | `#847564` `#9d2425` `#406300` `#705506` `#085786` `#89326d` `#026461` `#1e1407` |
+| Night | `#251810` `#e47d6d` `#a7c28c` `#f4dca1` `#d09e83` `#efa3a8` `#a6d6d2` `#d8c7bc` | `#826d5f` `#f19a8c` `#c0d7aa` `#feedc5` `#e0b7a0` `#febec2` `#c4ebe8` `#fcf5f1` |
+| Day | `#e9d9c8` `#9c3428` `#59743d` `#81692a` `#86563b` `#79343c` `#427370` `#584a3b` | `#847564` `#8a1d13` `#476128` `#6d550c` `#754528` `#68212c` `#2d615d` `#1e1407` |
 
 </details>
 
@@ -1592,7 +1601,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- ca-ph
 
 [![Kopi at night and in the day](site/assets/shots/kopi/pair.webp)](https://bjarneo.github.io/coffee-themes/#kopi)
 
-`55` · Origin: Malaysia and Singapore · Folder: [`kopi/`](kopi/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#kopi)
+`55` · Signature palette · Origin: Malaysia and Singapore · Folder: [`kopi/`](kopi/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#kopi)
 
 Strong coffee with condensed milk. The recipe background shows the recipe.
 
@@ -1606,8 +1615,8 @@ Strong coffee with condensed milk. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#271b11` `#ec817c` `#a3bd68` `#faba5d` `#67b3ec` `#e28abb` `#4dcec9` `#d7c7bb` | `#816d5e` `#f99f99` `#bbd28d` `#fed7a4` `#8cc8f8` `#f1a7ce` `#81e1dd` `#fcf5f0` |
-| Day | `#e9dac8` `#ac403f` `#5d750c` `#936202` `#0069a2` `#9d4578` `#0f7875` `#584b3a` | `#847665` `#9a2a2d` `#4c6100` `#7b5104` `#025788` `#8b3168` `#096361` `#1e1407` |
+| Night | `#271b11` `#df8071` `#96c979` `#eed780` `#cca17e` `#df9da1` `#addfbd` `#d7c7bb` | `#816d5e` `#ec9c8f` `#b2dd9c` `#ffefb1` `#ddb99c` `#efb7ba` `#caf4d7` `#fcf5f0` |
+| Day | `#e9dac8` `#98392d` `#457822` `#7f6a00` `#835835` `#915157` `#437656` `#584b3a` | `#847665` `#862419` `#336505` `#6a5805` `#724721` `#803f45` `#2e6443` `#1e1407` |
 
 </details>
 
@@ -1619,7 +1628,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- kopi 
 
 [![Yuanyang at night and in the day](site/assets/shots/yuanyang/pair.webp)](https://bjarneo.github.io/coffee-themes/#yuanyang)
 
-`56` · Origin: Hong Kong · Folder: [`yuanyang/`](yuanyang/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#yuanyang)
+`56` · Signature palette · Origin: Hong Kong · Folder: [`yuanyang/`](yuanyang/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#yuanyang)
 
 Coffee mixed with milk tea. The recipe background shows the recipe.
 
@@ -1633,8 +1642,8 @@ Coffee mixed with milk tea. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2c2016` `#ec8277` `#9ac06f` `#feb760` `#68b2ec` `#df8bc0` `#4cceca` `#d7c7bb` | `#826f5f` `#f99f95` `#b4d492` `#fed6aa` `#8cc8f8` `#eea7d3` `#80e1dd` `#fcf5f0` |
-| Day | `#eddecc` `#ac4039` `#54791e` `#9b6103` `#0369a2` `#9a467e` `#007c7a` `#584b3b` | `#867867` `#9a2a26` `#436600` `#825103` `#055788` `#88326d` `#0c6563` `#1e1407` |
+| Night | `#2c2016` `#df8071` `#b5be82` `#fbc77c` `#cea081` `#eaa6aa` `#a6d6d2` `#d7c7bb` | `#826f5f` `#ec9c8f` `#ccd3a2` `#fee3c0` `#dfb89e` `#f9c0c3` `#c4ebe8` `#fcf5f0` |
+| Day | `#eddecc` `#98392d` `#687031` `#976505` `#855738` `#75373e` `#457673` `#584b3b` | `#867867` `#862419` `#585f1b` `#7c5306` `#744625` `#64262e` `#306460` `#1e1407` |
 
 </details>
 
@@ -1646,7 +1655,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- yuany
 
 [![Galão at night and in the day](site/assets/shots/galao/pair.webp)](https://bjarneo.github.io/coffee-themes/#galao)
 
-`57` · Origin: Portugal · Folder: [`galao/`](galao/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#galao)
+`57` · Signature palette · Origin: Portugal · Folder: [`galao/`](galao/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#galao)
 
 Espresso with foamed milk in a tall glass. The recipe background shows the recipe.
 
@@ -1660,8 +1669,8 @@ Espresso with foamed milk in a tall glass. The recipe background shows the recip
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#1d2630` `#e4877e` `#96c077` `#ecc06a` `#79aeef` `#db8ebf` `#54cdcb` `#c0ccd9` | `#667584` `#f2a39b` `#b1d498` `#fcd994` `#98c4fa` `#eaaad2` `#85e0de` `#f2f7fd` |
-| Day | `#d5e2f0` `#a54741` `#507a2b` `#8f6906` `#2c64a5` `#964a7d` `#007c7b` `#424e5c` | `#6e7c8a` `#93332f` `#3c660e` `#765607` `#145294` `#84376c` `#006766` `#0d1721` |
+| Night | `#1d2630` `#e6857e` `#82c8b0` `#f7dba1` `#6fa7ee` `#8ec5ec` `#8cdffb` `#c0ccd9` | `#667584` `#f3a29a` `#a3dcc7` `#feedc9` `#8fbdf9` `#addbfb` `#c9effd` `#f2f7fd` |
+| Day | `#d5e2f0` `#9c3c38` `#2a7a62` `#866b2d` `#2460a7` `#39749b` `#00667e` `#424e5c` | `#6e7c8a` `#8a2727` `#046750` `#725711` `#094e96` `#226188` `#015468` `#0d1721` |
 
 </details>
 
@@ -1673,7 +1682,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- galao
 
 [![Wiener Melange at night and in the day](site/assets/shots/wiener-melange/pair.webp)](https://bjarneo.github.io/coffee-themes/#wiener-melange)
 
-`58` · Origin: Austria · Folder: [`wiener-melange/`](wiener-melange/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#wiener-melange)
+`58` · Signature palette · Origin: Austria · Folder: [`wiener-melange/`](wiener-melange/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#wiener-melange)
 
 Espresso with steamed milk and foam. The recipe background shows the recipe.
 
@@ -1687,8 +1696,8 @@ Espresso with steamed milk and foam. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2c1c1a` `#e68581` `#9dbe79` `#edc06a` `#71b3e2` `#da8fbc` `#63cbc8` `#dac5c3` | `#856a68` `#f3a19d` `#b7d299` `#fed895` `#93c8f0` `#e9aacf` `#8edfdb` `#fef4f3` |
-| Day | `#f1dcce` `#a74545` `#58782e` `#8e6703` `#1c6999` `#954b7a` `#027a78` `#5b493d` | `#897669` `#953133` `#446412` `#755405` `#005885` `#833869` `#016563` `#201309` |
+| Night | `#2c1c1a` `#da6b6e` `#98c5a0` `#f2cc7a` `#dd939e` `#eba6c6` `#ecdcc1` `#dac5c3` | `#856a68` `#e78989` `#b4d9bb` `#fee5b3` `#ecaeb6` `#fbc1db` `#faedd6` `#fef4f3` |
+| Day | `#f1dcce` `#982431` `#497653` `#8c6908` `#914a56` `#7b3b5c` `#7b6b51` `#5b493d` | `#897669` `#86011f` `#366541` `#735609` `#803746` `#6a294b` `#68593e` `#201309` |
 
 </details>
 
@@ -1781,7 +1790,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- kaffe
 
 [![Qahwa at night and in the day](site/assets/shots/qahwa/pair.webp)](https://bjarneo.github.io/coffee-themes/#qahwa)
 
-`62` · Origin: Arabian Peninsula · Folder: [`qahwa/`](qahwa/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#qahwa)
+`62` · Signature palette · Origin: Arabian Peninsula · Folder: [`qahwa/`](qahwa/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#qahwa)
 
 Light-roast coffee with cardamom. The recipe background shows the recipe.
 
@@ -1795,8 +1804,8 @@ Light-roast coffee with cardamom. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#262012` `#e48780` `#a2bd73` `#f0bf67` `#6db3e4` `#d98fbf` `#5eccc8` `#d2cab9` | `#7b705b` `#f2a39c` `#bbd295` `#ffd897` `#90c8f1` `#e9aad1` `#8bdfdc` `#faf6ef` |
-| Day | `#e9dfcb` `#a54743` `#5d7726` `#906607` `#126a9a` `#954b7c` `#0d7c79` `#554c3a` | `#837966` `#933331` `#4b6404` `#795500` `#085882` `#83386c` `#066664` `#1c1507` |
+| Night | `#262012` `#de826a` `#adca7a` `#f8ca65` `#85b18e` `#dca476` `#e7e0b2` `#d2cab9` | `#7b705b` `#ec9e8a` `#c6df9d` `#fee5b1` `#a1c5a7` `#ecbd97` `#f6f0ca` `#faf6ef` |
+| Day | `#e9dfcb` `#973b24` `#5c771d` `#8d6902` `#3f6c49` `#7c4711` `#6e6639` `#554c3a` | `#837966` `#85260d` `#4a6400` `#745603` `#2c5b38` `#683802` `#5d5526` `#1c1507` |
 
 </details>
 
@@ -1808,7 +1817,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- qahwa
 
 [![Bicerin at night and in the day](site/assets/shots/bicerin/pair.webp)](https://bjarneo.github.io/coffee-themes/#bicerin)
 
-`63` · Origin: Italy · Folder: [`bicerin/`](bicerin/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#bicerin)
+`63` · Signature palette · Origin: Italy · Folder: [`bicerin/`](bicerin/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#bicerin)
 
 Espresso, chocolate and cream in layers. The recipe background shows the recipe.
 
@@ -1822,8 +1831,8 @@ Espresso, chocolate and cream in layers. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2b1913` `#e48879` `#a1bd77` `#eebf6b` `#6db4df` `#da8fbb` `#65cbc7` `#dbc5be` | `#866a62` `#f2a497` `#bad298` `#ffd894` `#90c9ed` `#eaaace` `#8fdfdb` `#fdf5f2` |
-| Day | `#f2dcca` `#a5483c` `#5c772c` `#8f6605` `#126b96` `#964b78` `#0c7a77` `#5b493a` | `#8a7666` `#933429` `#4a6411` `#775508` `#005981` `#843967` `#096563` `#201307` |
+| Night | `#2b1913` `#df7f78` `#b2be93` `#f7d293` `#d5a08d` `#eeabba` `#b3d9db` `#dbc5be` | `#866a62` `#ec9b94` `#c9d3b0` `#feecce` `#e6b9a9` `#fec6d1` `#cfeff0` `#fdf5f2` |
+| Day | `#f2dcca` `#983835` `#657044` `#8c6721` `#84513e` `#945463` `#4e7476` `#5b493a` | `#8a7666` `#862323` `#545f32` `#785506` `#733f2d` `#824252` `#3a6264` `#201307` |
 
 </details>
 
@@ -1837,7 +1846,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- bicer
 
 [![Caramel Macchiato at night and in the day](site/assets/shots/caramel-macchiato/pair.webp)](https://bjarneo.github.io/coffee-themes/#caramel-macchiato)
 
-`64` · Folder: [`caramel-macchiato/`](caramel-macchiato/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#caramel-macchiato)
+`64` · Signature palette · Folder: [`caramel-macchiato/`](caramel-macchiato/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#caramel-macchiato)
 
 Vanilla, milk, espresso and a caramel drizzle. The recipe background shows the recipe.
 
@@ -1851,8 +1860,8 @@ Vanilla, milk, espresso and a caramel drizzle. The recipe background shows the r
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2e1f13` `#ec817b` `#9ebe6d` `#ffb75d` `#66b3ea` `#df8bc0` `#51cec6` `#d8c7ba` | `#846e5d` `#f89f98` `#b7d390` `#ffd6a8` `#8bc9f6` `#eea7d3` `#83e1da` `#fcf5f0` |
-| Day | `#efddc8` `#ac403e` `#59781b` `#9a6206` `#076a9e` `#9a467e` `#097a75` `#594a38` | `#877764` `#9a2a2c` `#486404` `#805002` `#005886` `#88336d` `#036561` `#1e1406` |
+| Night | `#2e1f13` `#e77b60` `#babc80` `#ffbc64` `#d39e7a` `#e49a9f` `#ecddb9` `#d8c7ba` | `#846e5d` `#f39982` `#cfd2a0` `#ffdbaf` `#e3b799` `#f4b4b8` `#faeed0` `#fcf5f0` |
+| Day | `#efddc8` `#a03114` `#6d6e2e` `#996302` `#895530` `#964d54` `#625431` `#594a38` | `#877764` `#8a1f00` `#5c5d17` `#7f5100` `#78441b` `#843b43` `#524320` `#1e1406` |
 
 </details>
 
@@ -1918,7 +1927,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- hazel
 
 [![Peppermint Mocha at night and in the day](site/assets/shots/peppermint-mocha/pair.webp)](https://bjarneo.github.io/coffee-themes/#peppermint-mocha)
 
-`67` · Folder: [`peppermint-mocha/`](peppermint-mocha/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#peppermint-mocha)
+`67` · Signature palette · Folder: [`peppermint-mocha/`](peppermint-mocha/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#peppermint-mocha)
 
 Chocolate, peppermint, espresso and milk. The recipe background shows the recipe.
 
@@ -1932,8 +1941,8 @@ Chocolate, peppermint, espresso and milk. The recipe background shows the recipe
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2b1815` `#f97677` `#93c268` `#f8bc44` `#59b4f3` `#e586c2` `#41d1b9` `#dcc5c0` | `#866a64` `#ff9a98` `#afd68d` `#ffd893` `#82cafe` `#f3a3d4` `#7be4cf` `#fdf4f3` |
-| Day | `#f3dbcb` `#b72e39` `#4d7b0d` `#906809` `#05699f` `#9f3f80` `#007c6c` `#5c493b` | `#8b7667` `#a40b26` `#3f6605` `#775505` `#055884` `#8d2a6e` `#0b6759` `#201208` |
+| Night | `#2b1815` `#e85f61` `#6bcf9d` `#f7dba1` `#5eb7a7` `#f496bb` `#ace7cc` `#dcc5c0` | `#866a64` `#f38180` `#93e2b8` `#feedc9` `#84cabc` `#fdb6d1` `#ccfbe5` `#fdf4f3` |
+| Day | `#f3dbcb` `#a40021` `#0e7e53` `#866b2d` `#046659` `#a1456e` `#074e37` `#5c493b` | `#8b7667` `#88001a` `#006943` `#725711` `#045348` `#8f315d` `#003d29` `#201208` |
 
 </details>
 
@@ -1945,7 +1954,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- peppe
 
 [![Pumpkin Spice Latte at night and in the day](site/assets/shots/pumpkin-spice-latte/pair.webp)](https://bjarneo.github.io/coffee-themes/#pumpkin-spice-latte)
 
-`68` · Folder: [`pumpkin-spice-latte/`](pumpkin-spice-latte/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#pumpkin-spice-latte)
+`68` · Signature palette · Folder: [`pumpkin-spice-latte/`](pumpkin-spice-latte/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#pumpkin-spice-latte)
 
 Pumpkin and spices with espresso and milk. The recipe background shows the recipe.
 
@@ -1959,8 +1968,8 @@ Pumpkin and spices with espresso and milk. The recipe background shows the recip
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2d1c14` `#f27e65` `#9bc065` `#feb76a` `#5ab5ef` `#e487c2` `#3bd0c8` `#dac6bc` | `#856b5f` `#fe9d86` `#b5d48b` `#fdd6b0` `#83cafb` `#f3a4d5` `#79e3dc` `#fdf5f1` |
-| Day | `#f1dcc9` `#b23a21` `#567903` `#9d600a` `#076a9b` `#9e4080` `#027c77` `#5b4939` | `#897765` `#9f2201` `#476500` `#845005` `#005884` `#8c2b6e` `#006763` `#1f1307` |
+| Night | `#2d1c14` `#df6a59` `#a9ba78` `#febd5c` `#e79363` `#dc8a90` `#f0dcb1` `#dac6bc` | `#856b5f` `#eb8979` `#c1cf99` `#fedbac` `#f5ae87` `#eaa5aa` `#feedca` `#fdf5f1` |
+| Day | `#f1dcc9` `#9c1f14` `#606f28` `#96650a` `#9b4806` `#93434c` `#6e5b30` `#5b4939` | `#897765` `#860500` `#4f5e0e` `#7c5306` `#823b03` `#81303b` `#5e4a1d` `#1f1307` |
 
 </details>
 
@@ -1972,7 +1981,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- pumpk
 
 [![Honey Latte at night and in the day](site/assets/shots/honey-latte/pair.webp)](https://bjarneo.github.io/coffee-themes/#honey-latte)
 
-`69` · Folder: [`honey-latte/`](honey-latte/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#honey-latte)
+`69` · Signature palette · Folder: [`honey-latte/`](honey-latte/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#honey-latte)
 
 A latte sweetened with honey. The recipe background shows the recipe.
 
@@ -1986,8 +1995,8 @@ A latte sweetened with honey. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2e2317` `#eb846c` `#96c071` `#f9bc41` `#67b3ec` `#e08bbe` `#4bcecc` `#d5c8ba` | `#80705e` `#f8a18c` `#b1d493` `#fed897` `#8cc9f8` `#efa7d1` `#80e1e0` `#fbf6f0` |
-| Day | `#ebdecb` `#ab432b` `#517a23` `#906600` `#0069a2` `#9b457c` `#007c7b` `#574b3a` | `#857866` `#992d14` `#3e6504` `#785500` `#015888` `#89316b` `#0c6565` `#1d1407` |
+| Night | `#2e2317` `#e2805e` `#b5bf7b` `#ffd16b` `#daa668` `#de958e` `#e7e0b2` `#d5c8ba` | `#80705e` `#ef9d80` `#ccd49d` `#ffedc7` `#eabf8d` `#edafa9` `#f6f0ca` `#fbf6f0` |
+| Day | `#ebdecb` `#9b380e` `#687027` `#8e6900` `#825204` `#803a36` `#5d5528` `#574b3a` | `#857866` `#832a00` `#575f09` `#755600` `#6d4300` `#6e2826` `#4d4514` `#1d1407` |
 
 </details>
 
@@ -1999,7 +2008,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- honey
 
 [![Lavender Latte at night and in the day](site/assets/shots/lavender-latte/pair.webp)](https://bjarneo.github.io/coffee-themes/#lavender-latte)
 
-`70` · Folder: [`lavender-latte/`](lavender-latte/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#lavender-latte)
+`70` · Signature palette · Folder: [`lavender-latte/`](lavender-latte/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#lavender-latte)
 
 A latte with lavender syrup. The recipe background shows the recipe.
 
@@ -2013,8 +2022,8 @@ A latte with lavender syrup. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#27202a` `#e4877e` `#93c17a` `#e6c36a` `#73b0ec` `#cc93d5` `#53cdce` `#d0c6d5` | `#7a6e7f` `#f2a39b` `#afd59a` `#f8db94` `#94c6f7` `#ddaee5` `#84e0e1` `#f9f5fc` |
-| Day | `#e7dcec` `#a54742` `#4c7a2f` `#896a00` `#2167a2` `#894f92` `#10797b` `#534958` | `#817686` `#93332f` `#376613` `#725806` `#005591` `#783d81` `#0e6667` `#1a131e` |
+| Night | `#27202a` `#df84a8` `#98c5a0` `#f0d49b` `#a4a2e8` `#d2a2e8` `#b2cbf9` `#d0c6d5` | `#7a6e7f` `#eda0be` `#b4d9bb` `#feedc9` `#bbbaf5` `#e4bcf7` `#d2e2fe` `#f9f5fc` |
+| Day | `#e7dcec` `#963b63` `#497653` `#856a2d` `#5e599e` `#845399` `#566f9b` `#534958` | `#817686` `#842753` `#366541` `#735712` `#4e478d` `#734188` `#425b87` `#1a131e` |
 
 </details>
 
@@ -2026,7 +2035,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- laven
 
 [![Dirty Chai at night and in the day](site/assets/shots/dirty-chai/pair.webp)](https://bjarneo.github.io/coffee-themes/#dirty-chai)
 
-`71` · Folder: [`dirty-chai/`](dirty-chai/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#dirty-chai)
+`71` · Signature palette · Folder: [`dirty-chai/`](dirty-chai/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#dirty-chai)
 
 A chai latte with a shot of espresso. The recipe background shows the recipe.
 
@@ -2040,8 +2049,8 @@ A chai latte with a shot of espresso. The recipe background shows the recipe.
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2d1c14` `#ef8168` `#a3bd6a` `#eec158` `#61b5e6` `#e28bb9` `#54cdc7` `#dac6bc` | `#856b5f` `#fb9f89` `#bcd28f` `#ffda88` `#88caf3` `#f1a7cd` `#84e0da` `#fdf5f1` |
-| Day | `#f1dcc9` `#af3f26` `#5f7615` `#8b690a` `#046b98` `#9c4577` `#007c78` `#5b4939` | `#897765` `#9d280b` `#4e6207` `#755700` `#005980` `#8a3166` `#0c6561` `#1f1307` |
+| Night | `#2d1c14` `#da6f54` `#a4bb7c` `#f4c26a` `#ce9677` `#e49a9f` `#ebddb9` `#dac6bc` | `#856b5f` `#e68d76` `#bcd09c` `#fddda6` `#deaf95` `#f4b4b8` `#f9eed0` `#fdf5f1` |
+| Day | `#f1dcc9` `#97290a` `#5a702d` `#906607` `#875030` `#964d54` `#726542` `#5b4939` | `#897765` `#7e1c00` `#495f16` `#795500` `#753f1d` `#843b43` `#615430` `#1f1307` |
 
 </details>
 
@@ -2055,7 +2064,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- dirty
 
 [![Arabica at night and in the day](site/assets/shots/arabica/pair.webp)](https://bjarneo.github.io/coffee-themes/#arabica)
 
-`72` · Folder: [`arabica/`](arabica/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#arabica)
+`72` · Signature palette · Folder: [`arabica/`](arabica/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#arabica)
 
 Sweet and bright. About 60 percent of the coffee in the world. The recipe background shows a coffee cherry in cross-section.
 
@@ -2069,8 +2078,8 @@ Sweet and bright. About 60 percent of the coffee in the world. The recipe backgr
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#291917` `#fd736d` `#81c674` `#f4be42` `#52b5f4` `#e885bf` `#1bd1cf` `#dac5c1` | `#846b66` `#fe9b94` `#a1d996` `#ffd88a` `#82cafd` `#f6a3d2` `#6ee4e1` `#fdf4f3` |
-| Day | `#f0dcce` `#bc282d` `#337d25` `#8c6803` `#006a9e` `#a23e7c` `#137a78` `#5a493d` | `#897669` `#a8031a` `#186a01` `#735501` `#015884` `#90286c` `#0c6564` `#201309` |
+| Night | `#291917` `#e65d64` `#7fc581` `#f2cc7a` `#7ab39a` `#ef90ae` `#c9d0a3` `#dac5c1` | `#846b66` `#f38183` `#9fd9a0` `#fee5b3` `#99c7b1` `#fdadc5` `#e0e6c1` `#fdf4f3` |
+| Day | `#f0dcce` `#9c0627` `#2c7933` `#8c6908` `#306d55` `#9f4164` `#6c7245` `#5a493d` | `#897669` `#80031e` `#0f681e` `#735609` `#185c44` `#8d2d52` `#585e30` `#201309` |
 
 </details>
 
@@ -2082,7 +2091,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- arabi
 
 [![Robusta at night and in the day](site/assets/shots/robusta/pair.webp)](https://bjarneo.github.io/coffee-themes/#robusta)
 
-`73` · Folder: [`robusta/`](robusta/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#robusta)
+`73` · Signature palette · Folder: [`robusta/`](robusta/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#robusta)
 
 Strong and bitter, with almost twice the caffeine of Arabica. The recipe background shows a coffee cherry in cross-section.
 
@@ -2096,8 +2105,8 @@ Strong and bitter, with almost twice the caffeine of Arabica. The recipe backgro
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#1e1910` `#e48876` `#a0bd75` `#e1c66a` `#6db4e2` `#dc8fba` `#60cbcb` `#d1c9bd` | `#7a7061` `#f1a494` `#b9d297` `#f4dd94` `#90c9f0` `#ebabce` `#8cdfde` `#faf6ef` |
-| Day | `#e3dbce` `#a44938` `#5a7528` `#816a0b` `#126a99` `#974b78` `#0b7878` `#544c3e` | `#7e7668` `#923524` `#466106` `#6b5600` `#005883` `#853867` `#086363` `#1b150a` |
+| Night | `#1e1910` `#ba8466` `#aab97f` `#e2c97d` `#e7e0b2` `#d29c8a` `#fef0d8` `#d1c9bd` | `#7a7061` `#ca9c83` `#c1ce9e` `#f5e0a3` `#f6f0ca` `#e2b5a5` `#fdecd0` `#faf6ef` |
+| Day | `#e3dbce` `#7c4626` `#606e31` `#6d5807` `#4f481a` `#643422` `#7c6847` `#544c3e` | `#7e7668` `#6b3512` `#505d1c` `#5a4803` `#403804` `#542311` `#695634` `#1b150a` |
 
 </details>
 
@@ -2109,7 +2118,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- robus
 
 [![Liberica at night and in the day](site/assets/shots/liberica/pair.webp)](https://bjarneo.github.io/coffee-themes/#liberica)
 
-`74` · Folder: [`liberica/`](liberica/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#liberica)
+`74` · Signature palette · Folder: [`liberica/`](liberica/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#liberica)
 
 Large beans with a smoky, floral taste. The recipe background shows a coffee cherry in cross-section.
 
@@ -2123,8 +2132,8 @@ Large beans with a smoky, floral taste. The recipe background shows a coffee che
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#261a1f` `#ec817d` `#91c273` `#f8bb5c` `#65b3ee` `#de8bc5` `#43cecf` `#d7c5cc` | `#806b74` `#f99f9a` `#add695` `#fed7a0` `#8ac9fa` `#eda7d7` `#7ce1e1` `#fcf4f8` |
-| Day | `#f0dbd5` `#ac3f41` `#4b7b25` `#956506` `#0369a2` `#994683` `#12797a` `#5b4842` | `#8a756f` `#9a292e` `#356700` `#7b5304` `#055788` `#873272` `#0f6666` `#20120e` |
+| Night | `#261a1f` `#de7d8d` `#9dc494` `#f4ca84` `#b1a1d1` `#e79bce` `#f8d7be` `#d7c5cc` | `#806b74` `#eb9aa6` `#b7d9b0` `#fee4ba` `#c6b9e1` `#f6b7e0` `#ffeada` `#fcf4f8` |
+| Day | `#f0dbd5` `#96364c` `#4e7646` `#90670e` `#6a5988` `#964c7f` `#7e5f47` `#5b4842` | `#8a756f` `#84213b` `#3c6533` `#785402` `#594877` `#84396f` `#6d4e35` `#20120e` |
 
 </details>
 
@@ -2136,7 +2145,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- liber
 
 [![Excelsa at night and in the day](site/assets/shots/excelsa/pair.webp)](https://bjarneo.github.io/coffee-themes/#excelsa)
 
-`75` · Folder: [`excelsa/`](excelsa/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#excelsa)
+`75` · Signature palette · Folder: [`excelsa/`](excelsa/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#excelsa)
 
 Tart and fruity. It grows on tall trees in Southeast Asia. The recipe background shows a coffee cherry in cross-section.
 
@@ -2150,8 +2159,8 @@ Tart and fruity. It grows on tall trees in Southeast Asia. The recipe background
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#271719` `#f37b7d` `#90c367` `#f5be43` `#56b4f5` `#e785c0` `#19d1d0` `#dac4c7` | `#846a6d` `#ff9a9a` `#acd78d` `#ffd98f` `#84c9fd` `#f5a3d2` `#6ee4e3` `#fdf4f5` |
-| Day | `#f2dbd0` `#b23640` `#497c0c` `#8d6804` `#08699f` `#a13e7d` `#127a79` `#5c483f` | `#8a756b` `#a01c2d` `#3b6703` `#745502` `#075885` `#8f286c` `#0b6565` `#20120b` |
+| Night | `#271719` `#de6674` `#a4c386` `#fdbc6f` `#d28bb3` `#fb93b4` `#fed2cb` `#dac4c7` | `#846a6d` `#ea868e` `#bed8a5` `#fddbb4` `#e2a6c7` `#feb7cc` `#fee9e5` `#fdf4f5` |
+| Day | `#f2dbd0` `#9b1b38` `#577535` `#9a620b` `#8a446e` `#7f1945` `#92625a` `#5c483f` | `#8a756b` `#850029` `#466421` `#825100` `#78325d` `#6c0035` `#7f4f47` `#20120b` |
 
 </details>
 
@@ -2165,7 +2174,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- excel
 
 [![Cinnamon Roast at night and in the day](site/assets/shots/cinnamon-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#cinnamon-roast)
 
-`76` · Folder: [`cinnamon-roast/`](cinnamon-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cinnamon-roast)
+`76` · Signature palette · Folder: [`cinnamon-roast/`](cinnamon-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#cinnamon-roast)
 
 The lightest roast. Light brown and grainy, with high acidity. The recipe background shows the roast curve.
 
@@ -2179,8 +2188,8 @@ The lightest roast. Light brown and grainy, with high acidity. The recipe backgr
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#3e2e22` `#e58871` `#99bf7a` `#edc06a` `#6eb3e4` `#d98fbf` `#5eccc9` `#d9c7ba` | `#8e7766` `#f3a491` `#b3d39a` `#fed994` `#91c8f2` `#e9aad2` `#8bdfdc` `#fcf5f0` |
-| Day | `#efddc8` `#a64832` `#53792f` `#8e6703` `#166a9b` `#954b7d` `#087a78` `#594a38` | `#887764` `#94341e` `#3f6514` `#765607` `#025886` `#83396c` `#056564` `#1e1406` |
+| Night | `#3e2e22` `#e28b63` `#c0c386` `#fed081` `#d3a784` `#f7b4a9` `#bbd7d9` `#d9c7ba` | `#8e7766` `#f0a685` `#d6d9a7` `#ffeccd` `#e4bfa2` `#fed2ca` `#d6edee` `#fcf5f0` |
+| Day | `#efddc8` `#994211` `#717232` `#7b5703` `#6c441f` `#692e25` `#577274` `#594a38` | `#887764` `#843200` `#5d5e18` `#674700` `#5c330a` `#581d15` `#436061` `#1e1406` |
 
 </details>
 
@@ -2192,7 +2201,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- cinna
 
 [![Light Roast at night and in the day](site/assets/shots/light-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#light-roast)
 
-`77` · Folder: [`light-roast/`](light-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#light-roast)
+`77` · Signature palette · Folder: [`light-roast/`](light-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#light-roast)
 
 Light brown and dry, with a bright, fruity taste. The recipe background shows the roast curve.
 
@@ -2206,8 +2215,8 @@ Light brown and dry, with a bright, fruity taste. The recipe background shows th
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#38291e` `#e48681` `#adba6c` `#f9b971` `#71b2e6` `#d98fbf` `#5eccc8` `#d8c7ba` | `#897464` `#f1a29d` `#c4cf90` `#fed6ac` `#93c8f3` `#e9aad2` `#8bdfdc` `#fcf5f0` |
-| Day | `#eeddc9` `#a54745` `#697318` `#9d6000` `#1d699c` `#944b7d` `#087a78` `#584a39` | `#877865` `#933333` `#576003` `#835000` `#015789` `#83386c` `#056563` `#1e1406` |
+| Night | `#38291e` `#dd8364` `#b5bf7b` `#fcc771` `#cda07f` `#eaa7a1` `#bbd7d9` `#d8c7ba` | `#897464` `#ea9f84` `#ccd49d` `#fee4bd` `#deb89d` `#fac1bc` `#d6edee` `#fcf5f0` |
+| Day | `#eeddc9` `#963d1a` `#687027` `#92660b` `#845836` `#763935` `#577274` `#584a39` | `#877865` `#832b01` `#575f09` `#7a5300` `#734723` `#652725` `#436061` `#1e1406` |
 
 </details>
 
@@ -2219,7 +2228,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- light
 
 [![City Roast at night and in the day](site/assets/shots/city-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#city-roast)
 
-`78` · Folder: [`city-roast/`](city-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#city-roast)
+`78` · Signature palette · Folder: [`city-roast/`](city-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#city-roast)
 
 Medium brown. The roast stops just after the first crack. The recipe background shows the roast curve.
 
@@ -2233,8 +2242,8 @@ Medium brown. The roast stops just after the first crack. The recipe background 
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#32241a` `#e4877d` `#9bbe79` `#fcb86e` `#6db4e2` `#dc8fb9` `#60cbcb` `#d8c7bb` | `#857060` `#f2a39a` `#b5d29a` `#fed6ae` `#90c9f0` `#ebaacd` `#8cdfde` `#fcf5f0` |
-| Day | `#eeddca` `#a54740` `#55782f` `#9d6003` `#126a99` `#974b77` `#127b7b` `#584a3a` | `#877866` `#93332e` `#436515` `#824e01` `#095881` `#863866` `#0e6666` `#1e1407` |
+| Night | `#32241a` `#da7f63` `#b2bb7f` `#fcc270` `#cb9d7e` `#e6a3a0` `#b8d4d5` `#d8c7bb` | `#857060` `#e79b83` `#c9d09f` `#fedfb6` `#dcb59b` `#f6bdba` `#d3eaeb` `#fcf5f0` |
+| Day | `#eeddca` `#953a1c` `#676e2f` `#956300` `#835636` `#743736` `#567273` `#584a3a` | `#877866` `#832500` `#565d19` `#7c5302` `#724523` `#632526` `#436061` `#1e1407` |
 
 </details>
 
@@ -2246,7 +2255,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- city-
 
 [![Full City Roast at night and in the day](site/assets/shots/full-city-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#full-city-roast)
 
-`79` · Folder: [`full-city-roast/`](full-city-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#full-city-roast)
+`79` · Signature palette · Folder: [`full-city-roast/`](full-city-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#full-city-roast)
 
 Medium dark. The roast stops at the edge of the second crack. The recipe background shows the roast curve.
 
@@ -2260,8 +2269,8 @@ Medium dark. The roast stops at the edge of the second crack. The recipe backgro
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#2d1f17` `#e68774` `#9fbd76` `#edc06b` `#6eb3e3` `#db8fba` `#60cbca` `#d8c7bc` | `#836e60` `#f3a392` `#b8d297` `#fed895` `#90c8f0` `#ebaace` `#8cdfdd` `#fcf5f1` |
-| Day | `#edddcc` `#a64735` `#5a772a` `#8f6704` `#156a99` `#964b78` `#137b7a` `#584a3b` | `#877767` `#943321` `#47640e` `#775608` `#005884` `#853867` `#0f6665` `#1e1407` |
+| Night | `#2d1f17` `#d77b64` `#b2b77b` `#fbbd6e` `#c9997c` `#e3a09f` `#b5d1d2` `#d8c7bc` | `#836e60` `#e49783` `#c8cc9b` `#fedab0` `#dab19a` `#f3bab9` `#d0e7e8` `#fcf5f1` |
+| Day | `#edddcc` `#933720` `#686b2c` `#996307` `#825336` `#733637` `#577375` `#584a3b` | `#877767` `#812207` `#575a14` `#7e5106` `#714224` `#622427` `#435f61` `#1e1407` |
 
 </details>
 
@@ -2273,7 +2282,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- full-
 
 [![Vienna Roast at night and in the day](site/assets/shots/vienna-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#vienna-roast)
 
-`80` · Folder: [`vienna-roast/`](vienna-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#vienna-roast)
+`80` · Signature palette · Folder: [`vienna-roast/`](vienna-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#vienna-roast)
 
 Dark brown with spots of oil and a bittersweet taste. The recipe background shows the roast curve.
 
@@ -2287,8 +2296,8 @@ Dark brown with spots of oil and a bittersweet taste. The recipe background show
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#281a13` `#e68776` `#a1bd76` `#edc06a` `#73b2e3` `#e08eae` `#62cbcb` `#d8c6bd` | `#836c60` `#f3a395` `#bad298` `#fdd994` `#94c7f1` `#efaac3` `#8ddfde` `#fdf5f1` |
-| Day | `#eeddcc` `#a64738` `#5c772a` `#8e6703` `#20699a` `#9b4a6c` `#007a7b` `#594a3b` | `#877767` `#943225` `#4a640e` `#765607` `#075887` `#89375b` `#006566` `#1f1308` |
+| Night | `#281a13` `#d07b6a` `#b0b27f` `#f5bb75` `#c19780` `#da9fa0` `#b5d1d2` `#d8c6bd` | `#836c60` `#de9687` `#c6c89d` `#ffd6a8` `#d2af9c` `#eab9b9` `#d0e7e8` `#fdf5f1` |
+| Day | `#eeddcc` `#8e392a` `#676933` `#9b6100` `#7c533c` `#6c3739` `#577375` `#594a3b` | `#877767` `#7c2517` `#57581e` `#805000` `#6b422b` `#5b262a` `#435f61` `#1f1308` |
 
 </details>
 
@@ -2300,7 +2309,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- vienn
 
 [![French Roast at night and in the day](site/assets/shots/french-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#french-roast)
 
-`81` · Folder: [`french-roast/`](french-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#french-roast)
+`81` · Signature palette · Folder: [`french-roast/`](french-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#french-roast)
 
 Very dark and oily, with a smoky taste. The recipe background shows the roast curve.
 
@@ -2314,8 +2323,8 @@ Very dark and oily, with a smoky taste. The recipe background shows the roast cu
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#221611` `#e48878` `#9ebe78` `#f3bc6d` `#71b3e2` `#db8fba` `#63cbc9` `#d8c6bf` | `#816c63` `#f1a496` `#b7d299` `#fdd7a2` `#93c8f0` `#eaaace` `#8edfdc` `#fdf5f1` |
-| Day | `#e8d9cc` `#a5483a` `#56742a` `#926208` `#1c6999` `#964b78` `#007977` `#584a3d` | `#837467` `#933527` `#43620e` `#785007` `#005885` `#843867` `#006463` `#1e140a` |
+| Night | `#221611` `#c87a6d` `#b0ad81` `#efb87c` `#be947e` `#d79ca0` `#b2cecf` `#d8c6bf` | `#816c63` `#d69489` `#c5c39f` `#fdd2a4` `#d0ac9a` `#e7b6b8` `#cde4e5` `#fdf5f1` |
+| Day | `#e8d9cc` `#883b30` `#696538` `#976019` `#69412c` `#612d32` `#567173` `#584a3d` | `#837467` `#76281e` `#585425` `#7f4d01` `#58301b` `#501c23` `#415d5f` `#1e140a` |
 
 </details>
 
@@ -2327,7 +2336,7 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- frenc
 
 [![Italian Roast at night and in the day](site/assets/shots/italian-roast/pair.webp)](https://bjarneo.github.io/coffee-themes/#italian-roast)
 
-`82` · Folder: [`italian-roast/`](italian-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#italian-roast)
+`82` · Signature palette · Folder: [`italian-roast/`](italian-roast/) · [Open on the site](https://bjarneo.github.io/coffee-themes/#italian-roast)
 
 The darkest roast. Nearly black and very oily. The recipe background shows the roast curve.
 
@@ -2341,8 +2350,8 @@ The darkest roast. Nearly black and very oily. The recipe background shows the r
 
 | Variant | Normal, 0 to 7 | Bright, 8 to 15 |
 | --- | --- | --- |
-| Night | `#1b130f` `#dc8d7a` `#a2bc80` `#f2bc7f` `#7ab2db` `#d693b6` `#73c9c5` `#d6c7c1` | `#7f6d67` `#eaa897` `#bbd19f` `#fed6ab` `#9ac7ea` `#e6aeca` `#99ddda` `#fdf5f2` |
-| Day | `#e5dad1` `#9d4f3d` `#5b7436` `#956016` `#2c6992` `#925074` `#127876` `#564b40` | `#83766b` `#8b3c2a` `#496120` `#7f4e01` `#145881` `#803e63` `#006462` `#1d140c` |
+| Night | `#1b130f` `#c07a70` `#afa985` `#eab583` `#f1cab9` `#c49397` `#afcacc` `#d6c7c1` | `#7f6d67` `#cf938b` `#c4bfa1` `#facea5` `#fde5da` `#d5abaf` `#c9e0e1` `#fdf5f2` |
+| Day | `#e5dad1` `#823c35` `#69623e` `#946129` `#634132` `#5a2e34` `#557173` `#564b40` | `#83766b` `#702a24` `#58522c` `#804c09` `#533121` `#4a1e25` `#415d5f` `#1d140c` |
 
 </details>
 
@@ -2353,14 +2362,14 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- itali
 
 ## How the themes are made
 
-The scripts in [`tools/`](tools/) make every file in this repo. They need Node.js 22 or later, Chromium, ImageMagick and ffmpeg.
+The scripts in [`tools/`](tools/) make every file in this repo. They need Node.js 22 or later, Chromium, ImageMagick and ffmpeg. `tools/capture.sh` also needs Omarchy, Hyprland and grim.
 
 | Script | Output |
 | --- | --- |
 | `tools/palettes.mjs` | The drink table and the color math. Every other script reads it. |
 | `tools/build.mjs` | `colors.toml` and `icons.theme` of each variant, and `site/assets/themes.js` |
 | `tools/render.mjs` | The 5 backgrounds of each variant at 6K. `tools/render.html` draws them on a canvas. |
-| `tools/preview.mjs` | `preview.png` of each variant and the site screenshots. `tools/preview.html` draws an Omarchy desktop. |
+| `tools/capture.sh` | `preview.png` of each variant and the site screenshots. It applies each variant on this desktop and takes a screenshot of workspace 8. |
 | `tools/assets.mjs` | The site previews, the thumbnails, the Aether copies and the mosaic |
 | `tools/promo.mjs` | `site/assets/promo.mp4`. `tools/promo.html` draws the frames. |
 | `tools/readme.mjs` | This README |
@@ -2370,12 +2379,14 @@ To build everything again, run the scripts in this order:
 ```bash
 node tools/build.mjs
 node tools/render.mjs
-node tools/preview.mjs
+tools/capture.sh
 node tools/assets.mjs
 node tools/promo.mjs song.mp3
 node tools/readme.mjs
 ```
 
-To change a drink, edit its row in `tools/palettes.mjs`, then run the scripts with the theme name, for example `node tools/render.mjs mocha`.
+`tools/capture.sh` takes about 25 minutes. It changes the theme of the desktop 164 times and shows workspace 8 the whole time. Open the windows that you want in the screenshots on workspace 8 first. If you switch to another workspace, the script stops and restores your theme. Run it again to continue where it stopped.
+
+To change a drink, edit its row in `tools/palettes.mjs`, then run the scripts with the theme name, for example `node tools/render.mjs mocha` and `tools/capture.sh mocha`.
 
 The site in [`site/`](site/) is a static page. The workflow in `.github/workflows/pages.yml` copies `install.sh` and every `colors.toml` into it and publishes it to GitHub Pages.

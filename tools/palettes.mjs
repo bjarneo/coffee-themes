@@ -128,6 +128,60 @@ const TABLE = [
   ['Italian Roast', 'roasts', 'The darkest roast. Nearly black and very oily.', { bg: [.13, .018, 42], accent: [40, .1], second: [60, .08], chroma: .1, warm: .55, roast: .96, temp: 245, art: 'black', vessel: 'demitasse', layers: L(['coffee', 1]) }],
 ];
 
+// Signature palettes. Like Osaka Jade or Miasma in Omarchy, these themes fill
+// the 6 ANSI slots with the colors of the drink, so a slot can hold a color
+// that is not its name: the yellow of Cold Brew is coffee amber, and the blue
+// of Pumpkin Spice Latte is pumpkin. Each slot is "hue chroma lightness" in
+// OKLCH, in the order red, green, yellow, blue, magenta, cyan. The lightness
+// is for night. The contrast check still raises or lowers every color.
+const SIGNATURE = {
+  'Espresso Solo': '30 .13 .68, 110 .09 .80, 80 .13 .86, 55 .07 .74, 5 .09 .76, 190 .05 .82',
+  'Ristretto': '28 .15 .66, 95 .10 .80, 70 .14 .84, 45 .09 .72, 0 .10 .76, 75 .05 .90',
+  'Mocha': '12 .14 .68, 125 .08 .78, 70 .12 .84, 45 .08 .72, 350 .10 .78, 80 .04 .90',
+  'White Mocha': '30 .10 .72, 115 .07 .80, 90 .10 .90, 65 .05 .76, 10 .07 .80, 200 .04 .86',
+  'Affogato': '30 .11 .70, 125 .07 .78, 92 .10 .90, 55 .06 .74, 5 .08 .78, 200 .04 .86',
+  'Romano': '35 .13 .68, 130 .13 .80, 105 .16 .90, 80 .09 .76, 55 .11 .74, 150 .08 .84',
+  'Red Eye': '25 .17 .64, 140 .09 .78, 60 .14 .80, 15 .11 .72, 355 .13 .76, 35 .06 .88',
+  'Black Eye': '355 .13 .70, 155 .07 .78, 85 .10 .86, 285 .11 .72, 320 .13 .76, 265 .07 .84',
+  'Dead Eye': '25 .13 .66, 140 .15 .78, 115 .14 .86, 165 .09 .72, 90 .09 .80, 185 .10 .84',
+  'Siphon': '20 .12 .72, 170 .08 .78, 80 .10 .86, 262 .13 .72, 295 .10 .76, 225 .11 .84',
+  'Percolator': '25 .12 .72, 160 .08 .78, 80 .10 .86, 250 .12 .72, 285 .07 .78, 230 .07 .86',
+  'Cold Brew': '25 .09 .72, 175 .08 .80, 75 .10 .86, 245 .10 .74, 280 .07 .78, 215 .09 .84',
+  'Nitro Cold Brew': '40 .08 .72, 155 .06 .80, 82 .07 .90, 250 .07 .74, 300 .05 .78, 220 .06 .84',
+  'Turkish Coffee': '40 .14 .70, 155 .09 .78, 82 .12 .86, 255 .12 .72, 15 .12 .72, 195 .10 .82',
+  'Cowboy Coffee': '35 .16 .66, 130 .08 .76, 72 .15 .84, 250 .09 .74, 15 .10 .70, 60 .06 .90',
+  'Espresso Tonic': '30 .12 .72, 130 .13 .80, 105 .15 .90, 210 .09 .76, 60 .10 .76, 185 .09 .86',
+  'Japanese Iced Coffee': '32 .16 .66, 140 .07 .78, 85 .10 .86, 265 .10 .72, 355 .10 .78, 225 .07 .84',
+  'Greek Frappé': '25 .12 .72, 170 .08 .78, 85 .08 .90, 252 .13 .72, 230 .08 .80, 205 .10 .86',
+  'Dalgona Coffee': '15 .11 .72, 120 .07 .78, 75 .13 .84, 50 .08 .74, 355 .09 .82, 85 .04 .90',
+  'Irish Coffee': '30 .13 .70, 150 .13 .78, 75 .13 .84, 165 .09 .70, 60 .10 .76, 180 .08 .86',
+  'Café de Olla': '30 .14 .66, 120 .07 .76, 70 .13 .84, 45 .08 .72, 15 .10 .76, 85 .05 .90',
+  'Cà Phê Sữa Đá': '30 .13 .70, 130 .08 .78, 88 .08 .90, 50 .07 .74, 15 .09 .76, 190 .05 .84',
+  'Kopi': '30 .12 .70, 135 .12 .78, 95 .11 .88, 60 .07 .74, 15 .08 .76, 155 .07 .86',
+  'Yuanyang': '30 .12 .70, 115 .08 .78, 75 .11 .86, 55 .07 .74, 15 .08 .76, 190 .05 .84',
+  'Galão': '25 .12 .72, 170 .08 .78, 85 .08 .90, 255 .12 .72, 240 .08 .80, 222 .09 .86',
+  'Wiener Melange': '20 .14 .66, 150 .07 .78, 85 .11 .86, 10 .09 .74, 350 .09 .80, 80 .04 .90',
+  'Qahwa': '35 .12 .70, 125 .11 .80, 85 .13 .86, 150 .07 .72, 60 .09 .76, 100 .06 .90',
+  'Bicerin': '25 .12 .70, 120 .06 .78, 80 .09 .88, 40 .07 .72, 5 .08 .78, 200 .04 .86',
+  'Caramel Macchiato': '35 .14 .70, 110 .08 .78, 72 .14 .84, 55 .08 .74, 15 .09 .76, 88 .05 .90',
+  'Peppermint Mocha': '22 .17 .66, 160 .12 .78, 85 .08 .90, 180 .09 .72, 355 .12 .78, 165 .07 .88',
+  'Pumpkin Spice Latte': '30 .15 .66, 120 .09 .76, 75 .15 .84, 50 .12 .74, 15 .10 .72, 85 .06 .90',
+  'Honey Latte': '40 .13 .70, 115 .09 .78, 85 .15 .88, 70 .10 .76, 25 .09 .74, 100 .06 .90',
+  'Lavender Latte': '355 .12 .72, 150 .07 .78, 85 .08 .88, 285 .10 .74, 315 .11 .78, 262 .07 .84',
+  'Dirty Chai': '35 .14 .66, 125 .09 .76, 80 .12 .84, 50 .08 .72, 15 .09 .76, 90 .05 .90',
+  'Arabica': '20 .17 .64, 145 .12 .76, 85 .11 .86, 165 .07 .72, 0 .12 .76, 115 .06 .84',
+  'Robusta': '50 .08 .66, 120 .08 .76, 92 .10 .84, 100 .06 .72, 40 .07 .74, 80 .05 .88',
+  'Liberica': '10 .12 .70, 140 .08 .78, 80 .10 .86, 300 .07 .74, 340 .11 .78, 60 .05 .90',
+  'Excelsa': '15 .15 .66, 130 .09 .78, 70 .12 .84, 345 .10 .72, 0 .13 .78, 30 .06 .90',
+  'Cinnamon Roast': '45 .12 .72, 110 .08 .80, 80 .11 .88, 60 .07 .76, 30 .08 .74, 200 .03 .86',
+  'Light Roast': '40 .12 .70, 115 .09 .78, 78 .12 .86, 58 .07 .74, 25 .08 .76, 200 .03 .86',
+  'City Roast': '38 .12 .69, 115 .08 .77, 75 .12 .85, 55 .07 .73, 22 .08 .75, 200 .03 .85',
+  'Full City Roast': '35 .12 .68, 112 .08 .76, 72 .12 .84, 52 .07 .72, 20 .08 .74, 200 .03 .84',
+  'Vienna Roast': '32 .11 .67, 110 .07 .75, 70 .11 .83, 50 .06 .71, 18 .07 .73, 200 .03 .84',
+  'French Roast': '30 .10 .66, 105 .06 .74, 68 .10 .82, 48 .06 .70, 15 .07 .72, 200 .03 .83',
+  'Italian Roast': '28 .09 .65, 100 .05 .73, 65 .09 .81, 45 .05 .69, 12 .06 .71, 200 .03 .82',
+};
+
 // ---------- color math ----------
 
 function rng(seed) {
@@ -276,14 +330,44 @@ function ansiHues(t, r) {
   return { h: h.map(x => (x + (r() - .5) * 6 + 360) % 360), c };
 }
 
+// The 6 slots of a theme as { h, c, night, day }, where night and day are the
+// start lightness before the contrast check.
+function slots(t, r) {
+  if (t.sig) return t.sig.map(([h, c, L]) => ({ h, c, night: L, day: .5 + (L - .74) * .6 }));
+  const { h, c } = ansiHues(t, r);
+  return h.map((x, k) => ({ h: x, c: c[k], night: NIGHT_L[k], day: DAY_L[k] }));
+}
+
+function oklabDistance(a, b) {
+  const p = hexOklch(a), q = hexOklch(b);
+  const rad = Math.PI / 180;
+  return Math.hypot(p.L - q.L, p.C * Math.cos(p.h * rad) - q.C * Math.cos(q.h * rad), p.C * Math.sin(p.h * rad) - q.C * Math.sin(q.h * rad));
+}
+
+// Two slots that look the same waste a color. When 2 slots are closer than
+// MIN_DISTANCE in OKLab, the later one moves away in lightness: lighter at
+// night and darker in the day, which also keeps its contrast.
+const MIN_DISTANCE = .06;
+function separate(colors, list, step, fit) {
+  const out = [...colors];
+  for (let j = 1; j < out.length; j++) {
+    for (let n = 0; n < 8 && out.slice(0, j).some(x => oklabDistance(x, out[j]) < MIN_DISTANCE); n++) {
+      const { L } = hexOklch(out[j]);
+      out[j] = fit(Math.min(.96, Math.max(.2, L + step)), list[j].c, list[j].h);
+    }
+  }
+  return out;
+}
+
 function nightPalette(t, r) {
   // The table chroma of the background is a little strong for large areas.
   const [bl, bc, bh] = [t.bg[0], t.bg[1] * .8, t.bg[2]];
   const bg = oklchHex(bl, bc, bh);
-  const { h, c } = ansiHues(t, r);
+  const list = slots(t, r);
   const T = TARGET.night;
-  const normal = h.map((x, k) => lighten(NIGHT_L[k], c[k], x, bg, T.normal));
-  const bright = h.map((x, k) => lighten(Math.min(.95, hexOklch(normal[k]).L + .07), c[k] * .82, x, bg, T.bright));
+  const fit = (L, C, h) => lighten(L, C, h, bg, T.normal);
+  const normal = separate(list.map(s => fit(s.night, s.c, s.h)), list, .03, fit);
+  const bright = list.map((s, k) => lighten(Math.min(.95, hexOklch(normal[k]).L + .07), s.c * .82, s.h, bg, T.bright));
   const fg = lighten(.91, Math.min(bc * .6 + .008, .03), bh, bg, T.fg);
   const ansi = [
     oklchHex(bl + .065, bc * 1.1, bh), ...normal, oklchHex(.84, Math.min(bc * .6 + .01, .03), bh),
@@ -317,10 +401,11 @@ function dayBackground(t) {
 function dayPalette(t, r) {
   const [dl, dc, dh] = dayBackground(t);
   const bg = oklchHex(dl, dc, dh);
-  const { h, c } = ansiHues(t, r);
+  const list = slots(t, r);
   const T = TARGET.day;
-  const normal = h.map((x, k) => darken(DAY_L[k], c[k] * 1.08, x, bg, T.normal));
-  const bright = h.map((x, k) => darken(hexOklch(normal[k]).L - .06, c[k] * 1.12, x, bg, T.bright));
+  const fit = (L, C, h) => darken(L, C * 1.08, h, bg, T.normal);
+  const normal = separate(list.map(s => fit(s.day, s.c, s.h)), list, -.03, fit);
+  const bright = list.map((s, k) => darken(hexOklch(normal[k]).L - .06, s.c * 1.12, s.h, bg, T.bright));
   const fg = darken(.3, Math.min(t.bg[1] * .8 + .01, .04), dh, bg, T.fg);
   const ansi = [
     oklchHex(dl - .055, dc * 1.4, dh), ...normal, oklchHex(.42, Math.min(t.bg[1] * .7 + .01, .035), dh),
@@ -359,6 +444,7 @@ export { CATEGORIES };
 export const themes = TABLE.map(([name, cat, desc, o], i) => {
   const slug = slugify(name);
   const t = { warm: .4, roast: .65, ...o };
+  if (SIGNATURE[name]) t.sig = SIGNATURE[name].split(',').map(x => x.trim().split(/\s+/).map(Number));
   const make = (key, build) => {
     const v = VARIANTS.find(x => x.key === key);
     const p = build(t, rng(i * 7919 + 13));
@@ -367,7 +453,7 @@ export const themes = TABLE.map(([name, cat, desc, o], i) => {
   return {
     index: i + 1, name, slug, cat, category: CATEGORIES[cat], desc, origin: t.origin || '',
     art: t.art, vessel: t.vessel, layers: t.layers, notes: t.notes || [], roast: t.roast, temp: t.temp || 0,
-    recipe: cat === 'roasts' ? 'roast' : cat === 'beans' ? 'cherry' : 'drink',
+    recipe: cat === 'roasts' ? 'roast' : cat === 'beans' ? 'cherry' : 'drink', signature: !!t.sig,
     variants: { night: make('night', nightPalette), day: make('day', dayPalette) },
   };
 });

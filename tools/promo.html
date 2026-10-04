@@ -10,7 +10,12 @@
 <script>
 // Promo video frames. tools/promo.mjs calls setup(), prepare() and frame().
 // Segments: intro, the 5 backgrounds, night and day, a card for each
-// category, one beat for each drink, and the outro.
+// category, one beat for each drink, and the outro. Nothing zooms: images
+// stay still, and only the pour, fades and slides move.
+//
+// The screenshots come from tools/capture.sh at the shape of the screen. A
+// frame shows the whole screenshot at full height, and the bars at the sides
+// hold the 16 ANSI colors.
 
 const W = 1920, H = 1080;
 const MONO = '"JetBrainsMono Nerd Font", "JetBrains Mono", monospace';
@@ -64,34 +69,51 @@ function text(str, x, y, size, color, opts = {}) {
   return w;
 }
 
-// Draws an image to cover the frame, zoomed by z around the center.
-function cover(img, z = 1, alpha = 1, ox = 0, oy = 0) {
-  const s = Math.max(W / img.width, H / img.height) * z;
+// Draws an image so that it covers the whole frame.
+function cover(img, alpha = 1) {
+  const s = Math.max(W / img.width, H / img.height);
   const w = img.width * s, h = img.height * s;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(img, (W - w) / 2 + ox, (H - h) / 2 + oy, w, h); ctx.restore();
+  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h); ctx.restore();
+}
+
+// Draws a screenshot at full height in the middle of the frame. The bars at
+// the sides take the darker background of the theme, with the 8 normal ANSI
+// colors on the left and the 8 bright colors on the right.
+function screen(img, t) {
+  const w = Math.min(W, img.width * H / img.height), x = (W - w) / 2;
+  ctx.fillStyle = t.colors.darker_background; ctx.fillRect(0, 0, W, H);
+  if (x > 40) {
+    const sq = 40, gap = 14, y0 = (H - (8 * sq + 7 * gap)) / 2;
+    for (let k = 0; k < 8; k++) {
+      ctx.fillStyle = t.ansi[k]; ctx.fillRect(x / 2 - sq / 2, y0 + k * (sq + gap), sq, sq);
+      ctx.fillStyle = t.ansi[k + 8]; ctx.fillRect(W - x / 2 - sq / 2, y0 + k * (sq + gap), sq, sq);
+    }
+  }
+  ctx.drawImage(img, x, 0, w, H);
+  return x;
 }
 
 function fadeIn(f, frames = 6) { const a = 1 - f / frames; if (a > 0) { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fillRect(0, 0, W, H); } }
 
 // The chip in the top right corner.
-function chip(t, alpha = 1) {
+function chip(t, alpha = 1, right = 60) {
   ctx.save(); ctx.globalAlpha = alpha;
   ctx.font = `bold 22px ${MONO}`;
   const label = '82 drinks × night and day', w = ctx.measureText(label).width + 40;
-  ctx.fillStyle = rgba(t.colors.background, .92); ctx.beginPath(); ctx.roundRect(W - 60 - w, 36, w, 50, 25); ctx.fill();
+  ctx.fillStyle = rgba(t.colors.background, .92); ctx.beginPath(); ctx.roundRect(W - right - w, 36, w, 50, 25); ctx.fill();
   ctx.strokeStyle = t.colors.accent; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = t.colors.foreground; ctx.textBaseline = 'middle'; ctx.fillText(label, W - 40 - w, 62);
+  ctx.fillStyle = t.colors.foreground; ctx.textBaseline = 'middle'; ctx.fillText(label, W - right + 20 - w, 62);
   ctx.restore();
 }
 
 function intro(f, n) {
   const t = S.intro;
-  cover(stills.hero[0], 1.12 - .06 * ease(f / n));
+  cover(stills.hero[0]);
   ctx.fillStyle = rgba(t.colors.darker_background, .72); ctx.fillRect(0, 0, W, H);
   const g = ctx.createRadialGradient(W / 2, H * .4, 0, W / 2, H * .4, W * .55);
   g.addColorStop(0, rgba(t.colors.accent, .16 * ease(f / 20))); g.addColorStop(1, rgba(t.colors.accent, 0));
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const width = 760 + 30 * ease(f / n), a = ease((f - 4) / 14);
+  const width = 780, a = ease((f - 4) / 14);
   const grad = ctx.createLinearGradient(0, 0, 1215, 0);
   grad.addColorStop(0, t.colors.accent); grad.addColorStop(1, t.second);
   ctx.save(); ctx.shadowColor = rgba('#000000', .6); ctx.shadowBlur = 30; ctx.shadowOffsetY = 8;
@@ -106,7 +128,7 @@ function intro(f, n) {
 // The 5 backgrounds of one variant, one per beat.
 function backgrounds(seg, f, n) {
   const b = S.backgrounds[seg.i], img = stills.backgrounds[seg.i], t = S.intro;
-  cover(img, 1.06 - .05 * ease(f / n));
+  cover(img);
   const a = ease(f / 6);
   ctx.save(); ctx.globalAlpha = a;
   const g = ctx.createLinearGradient(0, H * .55, 0, H);
@@ -118,9 +140,9 @@ function backgrounds(seg, f, n) {
   chip(t, a);
 }
 
-// The pour: the day image fills in from the top, behind a wavy edge of milk.
-function pour(night, day, p, edge, f) {
-  cover(night, 1);
+// The pour: the day frame fills in from the top, behind a wavy edge of milk.
+function pour(night, day, tn, td, p, f) {
+  screen(night, tn);
   if (p <= 0) return;
   const y0 = -60 + p * (H + 160);
   const wave = x => y0 + Math.sin(x / 160 + f * .35) * 22 + Math.sin(x / 61 - f * .5) * 9;
@@ -128,9 +150,10 @@ function pour(night, day, p, edge, f) {
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0);
   for (let x = W; x >= 0; x -= 20) ctx.lineTo(x, wave(x));
   ctx.closePath(); ctx.clip();
-  cover(day, 1);
+  screen(day, td);
   ctx.restore();
   if (p < 1) {
+    const edge = td.colors.background;
     ctx.save(); ctx.beginPath();
     for (let x = 0; x <= W; x += 20) x ? ctx.lineTo(x, wave(x)) : ctx.moveTo(x, wave(x));
     ctx.strokeStyle = rgba(edge, .9); ctx.lineWidth = 10; ctx.shadowColor = rgba(edge, .8); ctx.shadowBlur = 24; ctx.stroke();
@@ -138,19 +161,34 @@ function pour(night, day, p, edge, f) {
   }
 }
 
+function label(t, top, name, pill, a, x0) {
+  ctx.save(); ctx.font = `300 66px ${SERIF}`; const nameW = ctx.measureText(name).width; ctx.restore();
+  ctx.save(); ctx.font = `22px ${MONO}`; ctx.letterSpacing = '2px'; const topW = ctx.measureText(top).width; ctx.restore();
+  const bx = x0 + 36 - (1 - a) * 40, bh = 186, by = H - 56 - bh, bw = Math.max(nameW + 170, topW) + 72;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.fillStyle = rgba(t.colors.background, .94); ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 18); ctx.fill();
+  const border = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+  border.addColorStop(0, t.colors.accent); border.addColorStop(1, t.second);
+  ctx.lineWidth = 3; ctx.strokeStyle = border; ctx.stroke();
+  ctx.restore();
+  text(top, bx + 36, by + 48, 22, t.colors.dark_foreground, { alpha: a, spacing: '2px' });
+  text(name, bx + 32, by + 124, 66, t.colors.foreground, { font: SERIF, weight: '300', alpha: a });
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `bold 20px ${MONO}`;
+  const pw = ctx.measureText(pill).width + 30, px = bx + 40 + nameW + 10, py = by + 88;
+  ctx.fillStyle = t.colors.accent; ctx.beginPath(); ctx.roundRect(px, py, pw, 38, 19); ctx.fill();
+  ctx.fillStyle = t.colors.background; ctx.textBaseline = 'middle'; ctx.fillText(pill, px + 15, py + 20);
+  ctx.restore();
+  t.ansi.forEach((h, k) => { ctx.globalAlpha = a; ctx.fillStyle = h; ctx.fillRect(bx + 36 + k * ((bw - 72) / 16), by + bh - 34, (bw - 72) / 16 - 3, 10); });
+  ctx.globalAlpha = 1;
+}
+
 function nightAndDay(seg, f, n) {
   const p = seg.part === 0 ? 0 : inout(f / (n * .6));
-  pour(stills.hero[1], stills.hero[2], p, '#f4ead9', f);
-  const label = seg.part === 0 ? 'Night' : 'Day';
-  const t = seg.part === 0 ? S.intro : S.introDay;
-  const a = ease(f / 6);
-  ctx.save(); ctx.globalAlpha = a;
-  ctx.fillStyle = rgba(t.colors.background, .9); ctx.beginPath(); ctx.roundRect(70, H - 230, 640, 150, 18); ctx.fill();
-  ctx.strokeStyle = t.colors.accent; ctx.lineWidth = 3; ctx.stroke();
-  ctx.restore();
-  text('every drink has 2 variants', 106, H - 178, 24, t.colors.dark_foreground, { alpha: a, spacing: '2px' });
-  text(label, 102, H - 108, 66, t.colors.foreground, { font: SERIF, weight: '300', italic: true, alpha: a });
-  chip(t, a);
+  pour(stills.hero[1], stills.hero[2], S.intro, S.introDay, p, f);
+  const t = p > .5 ? S.introDay : S.intro;
+  const x0 = (W - Math.min(W, stills.hero[1].width * H / stills.hero[1].height)) / 2;
+  label(t, 'EVERY DRINK HAS 2 VARIANTS', p > .5 ? 'Day' : 'Night', 'cappuccino', ease(f / 6), x0);
+  chip(t, ease(f / 6), x0 + 40);
 }
 
 function section(seg, f, n) {
@@ -175,36 +213,11 @@ function clip(j, f, n) {
   const c = S.clips[j], [night, day] = images.get(j);
   // The pour starts at 40 percent of the beat and ends at 80 percent.
   const p = inout((f / n - .4) / .4);
-  const z = 1 + .03 * (1 - ease(f / n));
-  ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
-  pour(night, day, p, c.day.colors.background, f);
-  ctx.restore();
+  pour(night, day, c.night, c.day, p, f);
   const t = p > .5 ? c.day : c.night;
-  const a = ease(f / 5);
-  // Label: category and number on the first line, the name on the second
-  ctx.save(); ctx.font = `300 66px ${SERIF}`; const nameW = ctx.measureText(c.name).width; ctx.restore();
-  const top = `${c.category.toUpperCase()}  ·  ${String(c.index).padStart(2, '0')} / 82`;
-  ctx.save(); ctx.font = `22px ${MONO}`; ctx.letterSpacing = '2px'; const topW = ctx.measureText(top).width; ctx.restore();
-  const bx = 70 - (1 - a) * 40, bh = 186, by = H - 70 - bh, bw = Math.max(nameW + 170, topW) + 72;
-  ctx.save(); ctx.globalAlpha = a;
-  ctx.fillStyle = rgba(t.colors.background, .94); ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 18); ctx.fill();
-  const border = ctx.createLinearGradient(bx, 0, bx + bw, 0);
-  border.addColorStop(0, t.colors.accent); border.addColorStop(1, t.second);
-  ctx.lineWidth = 3; ctx.strokeStyle = border; ctx.stroke();
-  ctx.restore();
-  text(top, bx + 36, by + 48, 22, t.colors.dark_foreground, { alpha: a, spacing: '2px' });
-  text(c.name, bx + 32, by + 124, 66, t.colors.foreground, { font: SERIF, weight: '300', alpha: a });
-  // The pill says night or day
-  const pill = p > .5 ? 'day' : 'night';
-  ctx.save(); ctx.globalAlpha = a; ctx.font = `bold 20px ${MONO}`;
-  const pw = ctx.measureText(pill).width + 30, px = bx + 40 + nameW + 10, py = by + 88;
-  ctx.fillStyle = t.colors.accent; ctx.beginPath(); ctx.roundRect(px, py, pw, 38, 19); ctx.fill();
-  ctx.fillStyle = t.colors.background; ctx.textBaseline = 'middle'; ctx.fillText(pill, px + 15, py + 20);
-  ctx.restore();
-  // ANSI strip
-  t.ansi.forEach((h, k) => { ctx.globalAlpha = a; ctx.fillStyle = h; ctx.fillRect(bx + 36 + k * ((bw - 72) / 16), by + bh - 34, (bw - 72) / 16 - 3, 10); });
-  ctx.globalAlpha = 1;
-  chip(t);
+  const x0 = (W - Math.min(W, night.width * H / night.height)) / 2;
+  label(t, `${c.category.toUpperCase()}  ·  ${String(c.index).padStart(2, '0')} / 82`, c.name, p > .5 ? 'day' : 'night', ease(f / 5), x0);
+  chip(t, 1, x0 + 40);
   const prog = (j + f / n) / S.clips.length;
   ctx.fillStyle = rgba(t.colors.background, .7); ctx.fillRect(0, H - 8, W, 8);
   const g = ctx.createLinearGradient(0, 0, W, 0);
@@ -215,8 +228,7 @@ function clip(j, f, n) {
 function outro(f, n) {
   const t = S.intro;
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  const z = 1.3 - .3 * ease(f / n);
-  cover(stills.wall, z, ease(f / 8));
+  cover(stills.wall, ease(f / 8));
   ctx.fillStyle = rgba(t.colors.darker_background, .8 * ease((f - 10) / 12)); ctx.fillRect(0, 0, W, H);
   const b = ease((f - 14) / 10);
   const grad = ctx.createLinearGradient(0, 0, 1215, 0);
@@ -225,7 +237,7 @@ function outro(f, n) {
   text('164 themes', W / 2, H * .5, 120, t.colors.foreground, { align: 'center', font: SERIF, weight: '300', alpha: b, glow: 'rgba(0,0,0,.8)', blur: 30 });
   text('82 drinks  ×  night and day  ·  820 backgrounds at 6K', W / 2, H * .6, 30, t.colors.dark_foreground, { align: 'center', alpha: ease((f - 22) / 10) });
   text(S.url, W / 2, H * .71, 40, t.colors.accent, { align: 'center', bold: true, alpha: ease((f - 28) / 10) });
-  text(`curl -fsSL ${S.url}/install.sh | bash -s -- mocha --set`, W / 2, H * .8, 24, t.colors.foreground, { align: 'center', alpha: ease((f - 34) / 10) });
+  text(`curl -fsSL https://${S.url}/install.sh | bash -s -- mocha --set`, W / 2, H * .8, 24, t.colors.foreground, { align: 'center', alpha: ease((f - 34) / 10) });
   const end = f > n - 18 ? (f - (n - 18)) / 18 : 0;
   if (end > 0) { ctx.fillStyle = `rgba(0,0,0,${end})`; ctx.fillRect(0, 0, W, H); }
 }

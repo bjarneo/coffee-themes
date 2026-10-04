@@ -3,7 +3,7 @@
 //   site/assets/aether/<theme>/<variant>/*.jpg   3840x2160 copies for Aether links
 //   site/assets/bg/<theme>/<variant>/*.webp      1440x810 previews for the site
 //   site/assets/thumbs/<theme>/<variant>.webp    640x360 latte art crops for the menu cards
-//   site/assets/thumbs/<theme>/<variant>-desktop.webp  640x360 screenshots for card hovers
+//   site/assets/thumbs/<theme>/<variant>-desktop.webp  640x360 screenshot crops for card hovers
 //   site/assets/shots/<theme>/pair.webp          night and day screenshots side by side
 //   site/assets/mosaic.jpg                       all 164 screenshots in one image
 //
@@ -11,7 +11,8 @@
 //
 // Aether stops a download after 60 seconds, so its links use the smaller
 // copies. The script skips files that are newer than their source.
-// Needs `magick` on PATH. Run it after tools/render.mjs and tools/preview.mjs.
+// Needs `magick` on PATH. Run it after tools/render.mjs and tools/capture.sh.
+// The screenshots have the 16:10 shape of the screen that tools/capture.sh used.
 
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
@@ -26,8 +27,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = join(ROOT, 'site', 'assets');
 const fresh = (dest, srcs) => existsSync(dest) && srcs.every(s => statSync(s).mtimeMs <= statSync(dest).mtimeMs);
 
-// The screenshot of a variant, or its latte art preview when tools/preview.mjs
-// has not run for that variant yet.
+// The screenshot of a variant, or its latte art preview when tools/capture.sh
+// has not captured that variant yet.
 function shotOrBackground(t, key) {
   const shot = join(SITE, 'shots', t.slug, `${key}.webp`);
   return existsSync(shot) ? shot : join(SITE, 'bg', t.slug, key, '1-latte-art.webp');
@@ -67,7 +68,7 @@ for (const t of themes) {
   const shots = VARIANTS.map(({ key }) => shotOrBackground(t, key));
   const pair = join(SITE, 'shots', t.slug, 'pair.webp');
   if (shots.every(existsSync) && !fresh(pair, shots)) {
-    second.push(['magick', ['montage', ...shots, '-tile', `${shots.length}x1`, '-geometry', '720x405+4+0', '-background', '#15100c', '-quality', '82', pair]]);
+    second.push(['magick', ['montage', ...shots, '-tile', `${shots.length}x1`, '-geometry', '720x450+4+0', '-background', '#15100c', '-quality', '82', pair]]);
   }
 }
 await runAll(second);
@@ -89,7 +90,7 @@ const missing = tiles.filter(f => !existsSync(f)).length;
 if (missing) {
   console.log(`skipped site/assets/mosaic.jpg: ${missing} images are missing`);
 } else {
-  await run('magick', ['montage', ...tiles, '-tile', `${COLS}x${ROWS}`, '-geometry', '160x90+0+0', '-background', '#000', '-quality', '86', join(SITE, 'mosaic.jpg')]);
+  await run('magick', ['montage', ...tiles, '-tile', `${COLS}x${ROWS}`, '-geometry', '160x100+0+0', '-background', '#000', '-quality', '86', join(SITE, 'mosaic.jpg')]);
   console.log('wrote site/assets/mosaic.jpg');
 }
 
