@@ -1,0 +1,1396 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Coffee background renderer</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Background renderer for the night and day variants. tools/render.mjs loads
+// this page in headless Chromium and calls window.renderImage() once for each
+// background. All drawing uses a 3840x2160 design space. S scales the design
+// space to the output size. Full-size layers use the output resolution, and
+// blur radii scale with S, so every size looks the same.
+//
+// The 5 kinds:
+//   wordmark   the Omarchy wordmark with coffee ring stains
+//   latte-art  a top view of the drink on a table
+//   recipe     a cross-section of the drink, a roast curve or a coffee cherry
+//   crema      cream that swirls into coffee
+//   beans      roasted coffee beans
+
+const W = 3840, H = 2160;
+const MONO = '"JetBrainsMono Nerd Font", "JetBrains Mono", monospace';
+const SERIF = '"Noto Serif", serif';
+let LOGO = [];
+let S = 1;
+
+window.setLogo = paths => { LOGO = paths.map(p => ({ path: new Path2D(p.d), rule: p.evenodd ? 'evenodd' : 'nonzero' })); };
+
+// ---------- helpers ----------
+
+function rng(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function rgb(hex) { return [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)); }
+function rgba(hex, a) { const [r, g, b] = rgb(hex); return `rgba(${r},${g},${b},${a})`; }
+function mix(a, b, t) {
+  const pa = rgb(a), pb = rgb(b);
+  return '#' + pa.map((v, i) => Math.round(v * (1 - t) + pb[i] * t).toString(16).padStart(2, '0')).join('');
+}
+function lum(hex) { const [r, g, b] = rgb(hex); return (.2126 * r + .7152 * g + .0722 * b) / 255; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+
+// A layer without a size covers the design space at the output resolution.
+// Draw it back with drawImage(cv, 0, 0, W, H).
+function layer() {
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(W * S); cv.height = Math.round(H * S);
+  const cx = cv.getContext('2d');
+  cx.setTransform(S, 0, 0, S, 0, 0);
+  return [cv, cx];
+}
+
+// Canvas blur ignores the transform, so the radius scales with S.
+const blur = r => `blur(${(r * S).toFixed(1)}px)`;
+
+// Seeded 2D gradient noise.
+function makeNoise(seed) {
+  const r = rng(seed), perm = new Uint8Array(512), grad = [];
+  const p = [...Array(256).keys()];
+  for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+  for (let i = 0; i < 256; i++) { const a = r() * Math.PI * 2; grad.push([Math.cos(a), Math.sin(a)]); }
+  const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+  function n(x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y), sx = fade(x - x0), sy = fade(y - y0);
+    const X = x0 & 255, Y = y0 & 255, fx = x - x0, fy = y - y0;
+    const d = (dx, dy) => { const g = grad[perm[((X + dx) & 255) + perm[(Y + dy) & 255]]]; return g[0] * (fx - dx) + g[1] * (fy - dy); };
+    return lerp(lerp(d(0, 0), d(1, 0), sx), lerp(d(0, 1), d(1, 1), sx), sy);
+  }
+  n.fbm = (x, y, oct = 5) => { let s = 0, a = .5, f = 1; for (let i = 0; i < oct; i++) { s += a * n(x * f, y * f); a *= .5; f *= 2; } return s; };
+  return n;
+}
+
+// Fills the design space from a per-pixel function at a lower resolution.
+// fn(x, y) gets design coordinates and returns [r, g, b].
+function pixels(ctx, fn, width = 1600) {
+  const tw = Math.min(width, Math.round(W * S)), th = Math.round(tw * H / W);
+  const cv = document.createElement('canvas'); cv.width = tw; cv.height = th;
+  const cx = cv.getContext('2d'), img = cx.createImageData(tw, th), d = img.data;
+  for (let j = 0, i = 0; j < th; j++) {
+    const y = (j + .5) * H / th;
+    for (let k = 0; k < tw; k++, i += 4) {
+      const c = fn((k + .5) * W / tw, y);
+      d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+    }
+  }
+  cx.putImageData(img, 0, 0);
+  ctx.save(); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(cv, 0, 0, W, H); ctx.restore();
+}
+
+// Interpolates a list of hex colors at t from 0 to 1, as [r, g, b].
+function ramp(stops, t) {
+  t = clamp(t, 0, 1) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(t)), f = t - i;
+  const a = stops[i], b = stops[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+function vignette(ctx, P, amount) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, W * .62);
+  const c = P.light ? P.c[8] : P.darker;
+  g.addColorStop(0, rgba(c, 0)); g.addColorStop(1, rgba(c, amount ?? (P.light ? .22 : .55)));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+// Fine grain hides gradient banding after JPEG compression.
+function grain(ctx, seed, alpha = .05) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const gx = cv.getContext('2d'), r = rng(seed), img = gx.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) { const v = r() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  gx.putImageData(img, 0, 0);
+  ctx.save();
+  ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'overlay';
+  const pattern = ctx.createPattern(cv, 'repeat');
+  pattern.setTransform(new DOMMatrix().scale(1 / S));
+  ctx.fillStyle = pattern; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// Draws a shape with a soft shadow below and to the right, as if the light
+// comes from the top left.
+// box is the area of the shape as [x0, y0, x1, y1] in design px. The layers
+// cover only that area plus room for the blur, which keeps 6K renders fast.
+function shadowed(ctx, P, draw, { dx = 34, dy = 46, radius = 40, alpha, box = [0, 0, W, H] } = {}) {
+  const pad = radius * 3;
+  const x0 = Math.max(-pad, box[0] - pad), y0 = Math.max(-pad, box[1] - pad);
+  const x1 = Math.min(W + pad, box[2] + pad), y1 = Math.min(H + pad, box[3] + pad);
+  const w = Math.ceil((x1 - x0) * S), h = Math.ceil((y1 - y0) * S);
+  const make = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const cv = make(), lx = cv.getContext('2d');
+  lx.setTransform(S, 0, 0, S, -x0 * S, -y0 * S);
+  draw(lx);
+  const sv = make(), sx = sv.getContext('2d');
+  sx.drawImage(cv, 0, 0);
+  sx.globalCompositeOperation = 'source-in'; sx.fillStyle = P.light ? mix(P.c[8], '#000000', .6) : '#000000'; sx.fillRect(0, 0, w, h);
+  ctx.save(); ctx.filter = blur(radius); ctx.globalAlpha = alpha ?? (P.light ? .3 : .6); ctx.drawImage(sv, x0 + dx, y0 + dy, x1 - x0, y1 - y0); ctx.restore();
+  ctx.drawImage(cv, x0, y0, x1 - x0, y1 - y0);
+}
+
+// A soft ellipse that fades out at the edge. It replaces a blur filter, which
+// is slow on a 6K canvas when it runs hundreds of times.
+function softEllipse(ctx, x, y, rx, ry, rot, color, alpha) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(rx, ry);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+  g.addColorStop(0, rgba(color, alpha)); g.addColorStop(.55, rgba(color, alpha * .75)); g.addColorStop(1, rgba(color, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function circle(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0, r), 0, Math.PI * 2); }
+
+function text(ctx, str, x, y, size, color, { font = MONO, weight = '', align = 'left', spacing = 0, alpha = 1, baseline = 'alphabetic', italic = false } = {}) {
+  ctx.save();
+  ctx.font = `${italic ? 'italic ' : ''}${weight} ${size}px ${font}`;
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = baseline; ctx.globalAlpha = alpha;
+  if (spacing) ctx.letterSpacing = `${spacing}px`;
+  ctx.fillText(str, x, y);
+  const w = ctx.measureText(str).width;
+  ctx.restore();
+  return w;
+}
+
+// ---------- coffee colors ----------
+
+// Bean color from green-roasted tan (0) to near black (1).
+const ROAST = ['#a8834f', '#9c6a38', '#83502b', '#68391f', '#4c2a17', '#36200f', '#22150c'];
+function roastColor(t) { const c = ramp(ROAST.map(rgb), t); return '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join(''); }
+
+const INGREDIENT = {
+  espresso: '#3b2214', crema: '#b07038', ristretto: '#2e190e', 'long espresso': '#4a2c18', 'hot water': '#7a5536',
+  'steamed milk': '#efe2cf', 'milk foam': '#f8f1e6', microfoam: '#f5ece0', foam: '#f4ead9', 'half-and-half': '#f2e3c8',
+  chocolate: '#4a2618', 'white chocolate': '#efe0c0', 'whipped cream': '#fbf6ee', cream: '#f7efe0', grappa: '#ece4c2',
+  'vanilla gelato': '#f3e6c4', 'cocoa powder': '#5a3422', 'drip coffee': '#4a2a18', coffee: '#432616',
+  'pour-over coffee': '#5e3618', 'oils and fines': '#2a170c', 'moka coffee': '#341d10', 'percolated coffee': '#3e2414',
+  'cold brew': '#2c1a10', ice: '#dfeef5', 'nitro cold brew': '#2a1810', 'cascade foam': '#dcc39c', grounds: '#2a1a10',
+  'cold milk': '#f2ece2', 'shaken foam': '#c99c64', 'tonic water': '#e8ecdc', 'flash-brewed coffee': '#5a3418',
+  'ice water': '#dde9ee', milk: '#f0e8dc', 'frappé foam': '#cfa878', 'whipped coffee': '#c58a4e', lemon: '#f2d64b',
+  'irish whiskey': '#b8742a', 'hot milk': '#efe3d0', espumita: '#cb9c64', 'café cubano': '#3a2012', 'condensed milk': '#efdcae',
+  'licor 43': '#e2a83a', piloncillo: '#8a4a1e', 'coffee with cinnamon': '#4e2a16', 'phin coffee': '#2e1a0e', 'egg cream': '#f0d27a',
+  kopi: '#2f1a0d', 'milk tea': '#b98b5e', 'foamed milk': '#f4ebde', rum: '#8a4a1a', cheese: '#f0dca0',
+  'qahwa with cardamom': '#a87430', 'vanilla syrup': '#e9cf8e', caramel: '#b8682a', 'hazelnut syrup': '#a8743e',
+  'peppermint syrup': '#e9a6a6', 'pumpkin spice sauce': '#d07a2e', honey: '#e0a536', 'lavender syrup': '#b9a2d4',
+  chai: '#a8764a', 'coffee foam': '#8a5a34',
+};
+const FOAMY = /foam|cream|espumita|whipped|milk/;
+
+function ing(P, name) {
+  let c = INGREDIENT[name] || INGREDIENT.coffee;
+  // Coffee follows the roast of the theme. Everything takes a little of the accent.
+  if (/coffee|espresso|kopi|cold brew|ristretto/.test(name) && !FOAMY.test(name)) c = mix(c, roastColor(P.roast), .35);
+  c = mix(c, P.accent, .08);
+  return P.light ? c : mix(c, P.bg, lum(c) > .6 ? .1 : .04);
+}
+
+// Average color of the recipe, weighted by parts. Ice does not count.
+function blend(P, layers) {
+  let acc = [0, 0, 0], total = 0;
+  for (const [name, parts] of layers) { if (name === 'ice' || name === 'lemon') continue; const c = rgb(ing(P, name)); acc = acc.map((v, i) => v + c[i] * parts); total += parts; }
+  return '#' + acc.map(v => Math.round(v / total).toString(16).padStart(2, '0')).join('');
+}
+
+const pct = (parts, total) => `${Math.max(1, Math.round(parts / total * 100))}%`;
+
+// ---------- the wordmark background ----------
+
+function drawLogo(ctx, x, y, scale, fill) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+  ctx.fillStyle = fill;
+  LOGO.forEach(p => ctx.fill(p.path, p.rule));
+  ctx.restore();
+}
+
+// A coffee ring stain: a dark irregular edge and a faint fill.
+function stain(ctx, P, x, y, r, noise, seed, alpha) {
+  const col = P.light ? mix(roastColor(.45), P.accent, .2) : mix(roastColor(.3), P.accent, .3);
+  const pts = [];
+  for (let i = 0; i <= 180; i++) {
+    const a = i / 180 * Math.PI * 2;
+    const rr = r * (1 + noise(Math.cos(a) * 1.4 + seed, Math.sin(a) * 1.4 + seed) * .08);
+    pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]);
+  }
+  ctx.save();
+  ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py));
+  ctx.fillStyle = rgba(col, alpha * .18); ctx.fill();
+  // The ring is not closed everywhere, like a real stain.
+  const gap = (seed * 97) % 180;
+  ctx.lineCap = 'round';
+  for (const [w, a] of [[10, alpha], [4, alpha * .7]]) {
+    ctx.beginPath();
+    let open = false;
+    pts.forEach(([px, py], i) => {
+      const skip = Math.abs(i - gap) < 22;
+      if (skip) { open = false; return; }
+      if (!open) { ctx.moveTo(px, py); open = true; } else ctx.lineTo(px, py);
+    });
+    ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w; ctx.filter = blur(w === 10 ? 3 : 1); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function steam(ctx, P, x, y, height, r) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    const ox = x + (k - 1) * 120 + (r() - .5) * 40, ph = r() * 6;
+    ctx.beginPath();
+    for (let i = 0; i <= 60; i++) {
+      const t = i / 60, yy = y - t * height;
+      const xx = ox + Math.sin(t * 7 + ph) * 46 * t + Math.sin(t * 2.3 + ph) * 30;
+      i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+    }
+    const g = ctx.createLinearGradient(0, y, 0, y - height);
+    const col = P.light ? P.c[8] : P.fg;
+    g.addColorStop(0, rgba(col, 0)); g.addColorStop(.25, rgba(col, P.light ? .32 : .22)); g.addColorStop(1, rgba(col, 0));
+    ctx.strokeStyle = g; ctx.lineWidth = 16; ctx.filter = blur(12); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function wordmark(ctx, P, r, noise) {
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W / 2, H * .46, 0, W / 2, H * .46, W * .55);
+  glow.addColorStop(0, rgba(P.accent, P.light ? .1 : .12)); glow.addColorStop(1, rgba(P.accent, 0));
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+  // Ring stains in the corners, never over the wordmark
+  const spots = [[.12, .2], [.86, .78], [.8, .16], [.18, .84], [.5, .9]];
+  for (let i = 0; i < 3; i++) {
+    const [sx, sy] = spots[(P.index + i * 2) % spots.length];
+    stain(ctx, P, W * sx + (r() - .5) * 200, H * sy + (r() - .5) * 120, 260 + r() * 140, noise, i * 13 + P.index, P.light ? .22 : .2);
+  }
+
+  const scale = 1500 / 1215, lw = 1215 * scale, lh = 285 * scale;
+  const lx = (W - lw) / 2, ly = H * .47 - lh / 2;
+  steam(ctx, P, W / 2, ly - 60, 420, r);
+  const grad = ctx.createLinearGradient(0, 0, 1215, 0);
+  grad.addColorStop(0, P.accent); grad.addColorStop(1, P.second);
+  shadowed(ctx, P, lx2 => drawLogo(lx2, lx, ly, scale, grad), { dx: 10, dy: 16, radius: 24, alpha: P.light ? .25 : .5, box: [lx, ly, lx + lw, ly + lh] });
+
+  // Saucer line under the wordmark, then the 12 ANSI colors as coffee beans
+  const sy = ly + lh + 150;
+  ctx.fillStyle = rgba(P.c[8], .5); ctx.fillRect(W / 2 - 520, sy, 1040, 4);
+  const cols = [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14], gap = 86, x0 = W / 2 - (cols.length - 1) * gap / 2;
+  cols.forEach((k, i) => bean(ctx, P, x0 + i * gap, sy + 90, 54, -Math.PI / 2 + (i % 2 ? .25 : -.25), P.c[k], false, P.light ? .2 : .5));
+  text(ctx, P.name.toUpperCase(), W / 2, sy + 250, 40, P.c[8], { align: 'center', spacing: 14 });
+  vignette(ctx, P);
+  grain(ctx, P.index * 31, .05);
+}
+
+// ---------- coffee beans ----------
+
+// One bean. len is the long axis in design px. flat shows the crease side.
+function bean(ctx, P, x, y, len, rot, color, flat = true, shadow = .45, oily = false) {
+  const rx = len / 2, ry = len * .37;
+  if (shadow > 0) softEllipse(ctx, x + len * .1, y + len * .14, rx * 1.25, ry * 1.4, rot, '#000000', shadow);
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  // The light comes from the top left in screen space.
+  const lxp = Math.cos(-rot - 2.3) * rx * .45, lyp = Math.sin(-rot - 2.3) * ry * .45;
+  const g = ctx.createRadialGradient(lxp, lyp, len * .05, 0, 0, rx * 1.1);
+  g.addColorStop(0, mix(color, '#ffffff', .22)); g.addColorStop(.55, color); g.addColorStop(1, mix(color, '#000000', .45));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  if (flat) {
+    // The crease: an S curve along the long axis
+    ctx.beginPath();
+    ctx.moveTo(-rx * .86, -ry * .06);
+    ctx.bezierCurveTo(-rx * .3, ry * .32, rx * .3, -ry * .32, rx * .86, ry * .06);
+    ctx.strokeStyle = mix(color, '#000000', .62); ctx.lineWidth = len * .07; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.translate(0, -len * .03);
+    ctx.strokeStyle = rgba(mix(color, '#ffffff', .4), .5); ctx.lineWidth = len * .02; ctx.stroke();
+  }
+  ctx.restore();
+  if (oily) {
+    const hx = x + Math.cos(rot) * lxp * .9 - Math.sin(rot) * (lyp * .9 - ry * .1), hy = y + Math.sin(rot) * lxp * .9 + Math.cos(rot) * (lyp * .9 - ry * .1);
+    softEllipse(ctx, hx, hy, rx * .32, ry * .17, rot - .3, '#ffffff', .4);
+  }
+}
+
+function cherry(ctx, x, y, r, color) {
+  ctx.save();
+  softEllipse(ctx, x + r * .2, y + r * .28, r * 1.2, r * 1.2, 0, '#000000', .4);
+  const g = ctx.createRadialGradient(x - r * .35, y - r * .35, r * .1, x, y, r);
+  g.addColorStop(0, mix(color, '#ffffff', .35)); g.addColorStop(.6, color); g.addColorStop(1, mix(color, '#000000', .45));
+  ctx.fillStyle = g; circle(ctx, x, y, r); ctx.fill();
+  ctx.fillStyle = mix(color, '#000000', .5); circle(ctx, x + r * .1, y + r * .05, r * .12); ctx.fill();
+  ctx.restore();
+}
+
+function leaf(ctx, x, y, len, rot, color) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(len * .3, -len * .28, len * .75, -len * .22, len, 0);
+  ctx.bezierCurveTo(len * .75, len * .22, len * .3, len * .28, 0, 0);
+  const g = ctx.createLinearGradient(0, -len * .25, 0, len * .25);
+  g.addColorStop(0, mix(color, '#ffffff', .15)); g.addColorStop(1, mix(color, '#000000', .35));
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = mix(color, '#ffffff', .3); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len * .95, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function beans(ctx, P, r, noise) {
+  const g = ctx.createRadialGradient(W * .4, H * .35, 0, W * .5, H * .5, W * .7);
+  g.addColorStop(0, P.light ? mix(P.bg, '#ffffff', .4) : mix(P.bg, P.accent, .05)); g.addColorStop(1, P.light ? P.bg : P.darker);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Paper or slate texture
+  pixels(ctx, (x, y) => {
+    const v = noise.fbm(x * .004, y * .004, 3) * .5 + noise(x * .05, y * .05) * .15;
+    const c = rgb(P.light ? P.bg : mix(P.bg, P.darker, .5));
+    return c.map(ch => ch * (1 + v * (P.light ? .05 : .12)));
+  }, 1400);
+  ctx.save(); ctx.globalCompositeOperation = 'source-over';
+  const gl = ctx.createRadialGradient(W * .3, H * .25, 0, W * .3, H * .25, W * .7);
+  gl.addColorStop(0, rgba(P.light ? '#ffffff' : P.accent, P.light ? .35 : .08)); gl.addColorStop(1, rgba(P.bg, 0));
+  ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H); ctx.restore();
+
+  const base = mix(roastColor(P.roast), P.accent, .1);
+  const oily = P.roast > .66;
+  // A dense drift of beans from the bottom right, thinning out to the top left
+  const list = [];
+  for (let i = 0; i < 2600 && list.length < 340; i++) {
+    const x = r() * (W + 200) - 100, y = r() * (H + 200) - 100;
+    const d = ((W - x) / W) * .9 + ((H - y) / H) * .7 + noise(x * .0012, y * .0012) * .6;
+    if (r() > Math.pow(clamp(1.25 - d, 0, 1), 1.6) * 1.2) continue;
+    const len = 120 + r() * 40;
+    if (list.some(b => Math.hypot(b.x - x, b.y - y) < (b.len + len) * .42)) continue;
+    list.push({ x, y, len, rot: r() * Math.PI * 2, flat: r() < .6, tone: (r() - .5) * .16 });
+  }
+  // A few beans fall out on their own
+  for (let i = 0; i < 9; i++) list.push({ x: W * (.08 + r() * .45), y: H * (.12 + r() * .55), len: 120 + r() * 30, rot: r() * 6.3, flat: r() < .6, tone: (r() - .5) * .16 });
+  list.sort((a, b) => a.y - b.y);
+  const accentBeans = P.cat === 'beans';
+  for (const b of list) {
+    const col = b.tone > 0 ? mix(base, '#ffffff', b.tone * .5) : mix(base, '#000000', -b.tone);
+    bean(ctx, P, b.x, b.y, b.len, b.rot, col, b.flat, P.light ? .3 : .6, oily);
+  }
+  // Coffee beans themes get cherries and leaves on top of the pile
+  if (accentBeans) {
+    const red = mix('#b3262a', P.accent, .35), green = mix('#3f6b34', P.second, .25);
+    leaf(ctx, W * .7, H * .62, 520, -2.4, green);
+    leaf(ctx, W * .74, H * .66, 440, -1.2, mix(green, '#000000', .15));
+    [[.66, .6], [.69, .64], [.64, .66], [.71, .58]].forEach(([cx, cy], i) => cherry(ctx, W * cx, H * cy, 64 - i * 4, i === 3 ? mix(red, '#d8b030', .5) : red));
+  }
+  vignette(ctx, P, P.light ? .18 : .5);
+  grain(ctx, P.index * 41, .05);
+}
+
+// ---------- crema swirl ----------
+
+function crema(ctx, P, r, noise) {
+  const coffee = roastColor(P.roast * .8 + .2), milk = P.light ? mix('#fbf6ee', P.bg, .3) : mix('#e9dcc8', P.bg, .2);
+  const caramel = mix(mix(roastColor(.15), '#c8843a', .5), P.accent, .3);
+  const stops = (P.light
+    ? [milk, mix(milk, caramel, .35), caramel, mix(coffee, caramel, .4), coffee]
+    : [mix(P.darker, coffee, .3), coffee, mix(coffee, caramel, .55), caramel, milk]).map(rgb);
+  const cx = W * .6, cy = H * .5, f = .00075, k = 3.2;
+  const n2 = makeNoise(P.index * 977 + 5);
+  const m = rgb(milk), a = rgb(P.accent);
+  pixels(ctx, (x, y) => {
+    // Stir: the field turns around a point, more near the point
+    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+    const a = 2.6 * Math.exp(-d / 900);
+    const rx = cx + dx * Math.cos(a) - dy * Math.sin(a), ry = cy + dx * Math.sin(a) + dy * Math.cos(a);
+    const px = rx * f, py = ry * f;
+    const qx = noise.fbm(px, py, 4), qy = noise.fbm(px + 5.2, py + 1.3, 4);
+    const sx = n2.fbm(px + k * qx + 1.7, py + k * qy + 9.2, 4), sy = n2.fbm(px + k * qx + 8.3, py + k * qy + 2.8, 4);
+    const v = noise.fbm(px + k * sx, py + k * sy, 4);
+    let t = clamp(v * 1.6 + .5, 0, 1);
+    // Thin bright ribbons where the cream folds, and thin ribbons of the accent
+    const ribbon = Math.exp(-Math.abs(sx - .08) * 60), syrup = Math.exp(-Math.abs(sy + .12) * 70);
+    const c = ramp(stops, t);
+    return c.map((ch, i) => {
+      const v = ch + (m[i] - ch) * ribbon * (P.light ? .25 : .55);
+      return v + (a[i] - v) * syrup * .45;
+    });
+  }, 1600);
+  // Glossy light from the top left
+  const g = ctx.createRadialGradient(W * .25, H * .1, 0, W * .25, H * .1, W * .8);
+  g.addColorStop(0, `rgba(255,255,255,${P.light ? .18 : .07})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Small bubbles
+  for (let i = 0; i < 260; i++) {
+    const x = r() * W, y = r() * H, s = Math.pow(r(), 3) * 14 + 2;
+    ctx.strokeStyle = `rgba(255,255,255,${.06 + r() * .14})`; ctx.lineWidth = 1.5;
+    circle(ctx, x, y, s); ctx.stroke();
+  }
+  vignette(ctx, P, P.light ? .14 : .45);
+  grain(ctx, P.index * 19, .06);
+}
+
+// ---------- the table ----------
+
+function table(ctx, P, r, noise) {
+  const kinds = P.light ? ['marble', 'linen', 'oak'] : ['walnut', 'slate', 'walnut'];
+  const kind = kinds[P.index % 3];
+  if (kind === 'walnut' || kind === 'oak') {
+    const dark = kind === 'walnut' ? mix(P.darker, roastColor(.85), .35) : mix(P.bg, roastColor(.2), .3);
+    const light = kind === 'walnut' ? mix(P.bg, roastColor(.55), .3) : mix(P.bg, '#ffffff', .45);
+    const a = rgb(dark), b = rgb(light);
+    pixels(ctx, (x, y) => {
+      const plank = Math.floor((y + noise(x * .0004, 3) * 40) / 330);
+      const yy = y + plank * 211;
+      const gtex = noise.fbm(x * .0007 + plank * 7.3, yy * .012, 4);
+      const t = .5 + .5 * Math.sin(gtex * 18 + yy * .015);
+      const fine = noise(x * .02 + plank, yy * .4) * .25;
+      const seam = Math.abs(((y + noise(x * .0004, 3) * 40) % 330 + 330) % 330) < 4 ? .55 : 0;
+      const v = clamp(t * .55 + fine + .2, 0, 1) * (1 - seam);
+      return a.map((ch, i) => ch + (b[i] - ch) * v);
+    }, 2000);
+  } else if (kind === 'marble') {
+    const base = rgb(mix(P.bg, '#ffffff', .55)), vein = rgb(mix(P.c[8], P.accent, .2));
+    pixels(ctx, (x, y) => {
+      const wx = noise.fbm(x * .0006, y * .0006, 4) * 2.2;
+      const v = Math.abs(noise.fbm(x * .0011 + wx, y * .0011 - wx, 5));
+      const veinT = Math.exp(-v * 55) * .55 + Math.exp(-v * 14) * .12;
+      const cloud = noise.fbm(x * .002, y * .002, 3) * .04;
+      return base.map((ch, i) => ch * (1 + cloud) + (vein[i] - ch) * veinT);
+    }, 2000);
+  } else if (kind === 'linen') {
+    ctx.fillStyle = mix(P.bg, P.c[0], .5); ctx.fillRect(0, 0, W, H);
+    const fine = rgb(P.c[8]);
+    pixels(ctx, (x, y) => {
+      const wv = Math.sin(x * .9) * .5 + Math.sin(y * .9) * .5;
+      const slub = noise(x * .01, y * .3) * .6 + noise(x * .3, y * .01) * .6;
+      const base = rgb(mix(P.bg, '#ffffff', .2));
+      const t = clamp(.08 + wv * .03 + slub * .05, 0, 1);
+      return base.map((ch, i) => ch + (fine[i] - ch) * t);
+    }, 3000);
+  } else {
+    const base = rgb(mix(P.darker, P.bg, .6));
+    pixels(ctx, (x, y) => {
+      const v = noise.fbm(x * .002, y * .002, 5) * .25 + noise(x * .03, y * .03) * .08;
+      return base.map(ch => ch * (1 + v));
+    }, 2000);
+  }
+  // Soft window light from the top left
+  const g = ctx.createRadialGradient(W * .22, H * .05, 0, W * .3, H * .2, W * .9);
+  g.addColorStop(0, `rgba(255,${P.light ? 255 : 230},${P.light ? 250 : 200},${P.light ? .22 : .1})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+// ---------- cups ----------
+
+// Top view sizes: liquid radius, rim width, saucer radius, handle, material.
+const CUPS = {
+  demitasse: { R: 290, rim: 58, saucer: 600, handle: 1, material: 'ceramic' },
+  cup: { R: 420, rim: 66, saucer: 800, handle: 1, material: 'ceramic' },
+  mug: { R: 450, rim: 80, saucer: 0, handle: 1.2, material: 'ceramic' },
+  enamel: { R: 440, rim: 60, saucer: 0, handle: 1.2, material: 'enamel' },
+  bowl: { R: 560, rim: 62, saucer: 0, handle: 0, material: 'ceramic' },
+  clay: { R: 430, rim: 76, saucer: 0, handle: 1.2, material: 'clay' },
+  finjan: { R: 260, rim: 44, saucer: 520, handle: 0, material: 'ceramic' },
+  guksi: { R: 380, rim: 70, saucer: 0, handle: 1.1, material: 'wood' },
+  glass: { R: 340, rim: 22, saucer: 0, handle: 0, material: 'glass' },
+  tall: { R: 360, rim: 22, saucer: 0, handle: 0, material: 'glass' },
+  tumbler: { R: 420, rim: 24, saucer: 0, handle: 0, material: 'glass' },
+  stemmed: { R: 400, rim: 20, saucer: 0, handle: 0, material: 'glass' },
+  coupe: { R: 470, rim: 16, saucer: 0, handle: 0, material: 'glass' },
+};
+
+function glaze(P) { return P.light ? mix('#fdfbf7', P.accent, .1) : mix(mix(P.bg, P.fg, .3), P.accent, .16); }
+
+function material(P, kind) {
+  if (kind === 'clay') return mix('#b4643a', P.accent, .15);
+  if (kind === 'wood') return mix('#a0703c', P.accent, .1);
+  if (kind === 'enamel') return P.light ? mix('#3d6fa8', P.second, .3) : mix('#2f5582', P.second, .3);
+  return glaze(P);
+}
+
+function saucer(ctx, P, x, y, R) {
+  const col = glaze(P);
+  shadowed(ctx, P, lx => {
+    const g = lx.createRadialGradient(x - R * .3, y - R * .35, R * .1, x, y, R);
+    g.addColorStop(0, mix(col, '#ffffff', .18)); g.addColorStop(.8, col); g.addColorStop(1, mix(col, '#000000', .25));
+    lx.fillStyle = g; circle(lx, x, y, R); lx.fill();
+    // The well in the middle
+    lx.strokeStyle = rgba(mix(col, '#000000', .4), .35); lx.lineWidth = 6; circle(lx, x, y, R * .62); lx.stroke();
+    lx.strokeStyle = 'rgba(255,255,255,.25)'; lx.lineWidth = 4;
+    lx.beginPath(); lx.arc(x, y, R - 14, Math.PI * .95, Math.PI * 1.6); lx.stroke();
+  }, { dx: 28, dy: 40, radius: 46, box: [x - R, y - R, x + R, y + R] });
+}
+
+function spoon(ctx, P, x, y, rot, len = 520) {
+  const metal = P.light ? '#c9cbd0' : '#8d9097';
+  shadowed(ctx, P, lx => {
+    lx.save(); lx.translate(x, y); lx.rotate(rot);
+    const g = lx.createLinearGradient(0, -40, 0, 40);
+    g.addColorStop(0, '#f4f5f7'); g.addColorStop(.5, metal); g.addColorStop(1, mix(metal, '#000000', .35));
+    lx.fillStyle = g;
+    lx.beginPath(); lx.ellipse(0, 0, len * .16, len * .1, 0, 0, Math.PI * 2); lx.fill();
+    lx.beginPath(); lx.moveTo(len * .12, -12); lx.lineTo(len, -16); lx.quadraticCurveTo(len + 26, 0, len, 16); lx.lineTo(len * .12, 12); lx.closePath(); lx.fill();
+    lx.fillStyle = 'rgba(255,255,255,.55)'; lx.beginPath(); lx.ellipse(-len * .04, -len * .03, len * .08, len * .03, -.2, 0, Math.PI * 2); lx.fill();
+    lx.restore();
+  }, { dx: 14, dy: 22, radius: 14, box: [x - len * 1.1, y - len * 1.1, x + len * 1.1, y + len * 1.1] });
+}
+
+function sugarCube(ctx, P, x, y, s, rot) {
+  shadowed(ctx, P, lx => {
+    lx.save(); lx.translate(x, y); lx.rotate(rot);
+    lx.fillStyle = P.light ? '#fbfaf6' : '#d9d4ca';
+    lx.beginPath(); lx.roundRect(-s / 2, -s / 2, s, s, s * .12); lx.fill();
+    lx.fillStyle = 'rgba(0,0,0,.08)';
+    const r = rng(Math.round(x));
+    for (let i = 0; i < 60; i++) lx.fillRect(-s / 2 + r() * s, -s / 2 + r() * s, 3, 3);
+    lx.restore();
+  }, { dx: 10, dy: 14, radius: 10, box: [x - s, y - s, x + s, y + s] });
+}
+
+function lemonWheel(ctx, P, x, y, R, rot) {
+  shadowed(ctx, P, lx => {
+    lx.save(); lx.translate(x, y); lx.rotate(rot);
+    lx.fillStyle = '#e8c42e'; circle(lx, 0, 0, R); lx.fill();
+    lx.fillStyle = '#fbf3cf'; circle(lx, 0, 0, R * .9); lx.fill();
+    for (let i = 0; i < 9; i++) {
+      const a0 = i / 9 * Math.PI * 2 + .05, a1 = (i + 1) / 9 * Math.PI * 2 - .05;
+      lx.beginPath(); lx.moveTo(Math.cos((a0 + a1) / 2) * R * .1, Math.sin((a0 + a1) / 2) * R * .1);
+      lx.arc(0, 0, R * .82, a0, a1); lx.closePath();
+      lx.fillStyle = '#f6d84a'; lx.fill();
+    }
+    lx.restore();
+  }, { dx: 12, dy: 18, radius: 14, box: [x - R, y - R, x + R, y + R] });
+}
+
+function cinnamonStick(ctx, P, x, y, len, rot) {
+  shadowed(ctx, P, lx => {
+    lx.save(); lx.translate(x, y); lx.rotate(rot);
+    const g = lx.createLinearGradient(0, -34, 0, 34);
+    g.addColorStop(0, '#b9733e'); g.addColorStop(.5, '#8e4e24'); g.addColorStop(1, '#5c2f14');
+    lx.fillStyle = g; lx.beginPath(); lx.roundRect(-len / 2, -34, len, 68, 20); lx.fill();
+    lx.strokeStyle = 'rgba(60,25,8,.45)'; lx.lineWidth = 3;
+    for (let i = -len / 2 + 30; i < len / 2; i += 46) { lx.beginPath(); lx.moveTo(i, -30); lx.lineTo(i + 6, 30); lx.stroke(); }
+    lx.fillStyle = '#4a240f'; lx.beginPath(); lx.ellipse(len / 2, 0, 12, 33, 0, 0, Math.PI * 2); lx.fill();
+    lx.strokeStyle = '#c98a52'; lx.lineWidth = 4; lx.beginPath(); lx.arc(len / 2, 0, 18, -1.2, 1.4); lx.stroke();
+    lx.restore();
+  }, { dx: 16, dy: 22, radius: 16, box: [x - len * .6, y - len * .6, x + len * .6, y + len * .6] });
+}
+
+function starAnise(ctx, P, x, y, s) {
+  shadowed(ctx, P, lx => {
+    lx.save(); lx.translate(x, y);
+    for (let i = 0; i < 8; i++) {
+      lx.save(); lx.rotate(i / 8 * Math.PI * 2);
+      lx.fillStyle = '#6b3519'; lx.beginPath(); lx.ellipse(s * .55, 0, s * .5, s * .2, 0, 0, Math.PI * 2); lx.fill();
+      lx.fillStyle = '#a0623a'; lx.beginPath(); lx.ellipse(s * .55, 0, s * .16, s * .08, 0, 0, Math.PI * 2); lx.fill();
+      lx.restore();
+    }
+    lx.restore();
+  }, { dx: 10, dy: 14, radius: 10, box: [x - s * 1.2, y - s * 1.2, x + s * 1.2, y + s * 1.2] });
+}
+
+// The milk shapes. All art draws around 0,0 with the cup radius R, the tip
+// of a heart points down to the viewer.
+function heartPath(c, y, s) {
+  c.beginPath();
+  c.moveTo(0, y + s * .95);
+  c.bezierCurveTo(-s * 1.25, y + s * .15, -s * .95, y - s * .85, 0, y - s * .35);
+  c.bezierCurveTo(s * .95, y - s * .85, s * 1.25, y + s * .15, 0, y + s * .95);
+}
+
+function crescent(c, y, w, h, tilt = 0) {
+  c.beginPath();
+  c.moveTo(-w, y - h * .15 + tilt);
+  c.quadraticCurveTo(0, y + h * 1.35, w, y - h * .15 - tilt);
+  c.quadraticCurveTo(0, y + h * .45, -w, y - h * .15 + tilt);
+  c.closePath();
+}
+
+function crema_base(c, P, R, base) {
+  const g = c.createRadialGradient(0, -R * .1, R * .1, 0, 0, R);
+  g.addColorStop(0, mix(base, '#ffffff', .12)); g.addColorStop(.75, base); g.addColorStop(1, mix(base, '#000000', .4));
+  c.fillStyle = g; c.fillRect(-R, -R, R * 2, R * 2);
+}
+
+// Espresso crema under milk art: a golden middle, mottled, with a dark ring at the edge.
+function cremaSurface(c, P, R, r) {
+  const base = ing(P, 'crema'), dark = mix(base, roastColor(.9), .55);
+  const g = c.createRadialGradient(0, R * .05, R * .05, 0, 0, R);
+  g.addColorStop(0, mix(base, '#e8b878', .3)); g.addColorStop(.6, base); g.addColorStop(.88, mix(base, dark, .6)); g.addColorStop(1, dark);
+  c.fillStyle = g; c.fillRect(-R, -R, R * 2, R * 2);
+  for (let i = 0; i < 500; i++) {
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * R, s = 6 + r() * 26;
+    c.fillStyle = rgba(r() < .5 ? dark : mix(base, '#f0c080', .4), .05 + r() * .07);
+    circle(c, Math.cos(a) * d, Math.sin(a) * d, s); c.fill();
+  }
+}
+
+// Milk with a soft edge and a brown halo where it meets the crema.
+function milkShape(c, P, draw, milk) {
+  c.save();
+  c.filter = blur(10); c.fillStyle = rgba(mix(milk, '#6a3a18', .5), .35); draw(c); c.fill();
+  c.filter = blur(2.5); c.fillStyle = milk; draw(c); c.fill();
+  c.restore();
+}
+
+function speckle(c, R, r, color, count, size, alpha, inside = .95) {
+  for (let i = 0; i < count; i++) {
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * R * inside;
+    c.fillStyle = rgba(color, alpha * (.4 + r() * .6));
+    c.fillRect(Math.cos(a) * d, Math.sin(a) * d, size * (.5 + r()), size * (.5 + r()));
+  }
+}
+
+function bubbles(c, R, r, color, count, maxSize) {
+  for (let i = 0; i < count; i++) {
+    const a = r() * Math.PI * 2, d = Math.pow(r(), .6) * R * .98, s = Math.pow(r(), 2.5) * maxSize + 1.5;
+    c.strokeStyle = rgba(color, .25 + r() * .35); c.lineWidth = 1.6;
+    circle(c, Math.cos(a) * d, Math.sin(a) * d, s); c.stroke();
+  }
+}
+
+function iceCubes(c, P, R, r, n = 5) {
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2 + r() * .6, d = R * (.3 + r() * .32), s = R * (.38 + r() * .1);
+    c.save(); c.translate(Math.cos(a) * d, Math.sin(a) * d); c.rotate(r() * 1.5);
+    c.fillStyle = 'rgba(235,245,250,.28)'; c.beginPath(); c.roundRect(-s / 2, -s / 2, s, s, s * .22); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 5; c.stroke();
+    c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.roundRect(-s * .38, -s * .38, s * .4, s * .16, 8); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 2; c.beginPath(); c.moveTo(-s * .1, s * .1); c.lineTo(s * .25, -s * .05); c.lineTo(s * .3, s * .3); c.stroke();
+    c.restore();
+  }
+}
+
+function whipped(c, P, R, cream, r, scale = 1) {
+  const lobes = [];
+  for (let ring = 0; ring < 3; ring++) {
+    const rr = R * (.62 - ring * .24) * scale, n = 9 - ring * 3;
+    for (let i = 0; i < n; i++) lobes.push([rr, i / n * Math.PI * 2 + ring * .5, R * (.3 - ring * .05) * scale]);
+  }
+  lobes.push([0, 0, R * .2 * scale]);
+  for (const [rr, a, s] of lobes) {
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+    c.save(); c.filter = blur(8); c.fillStyle = 'rgba(0,0,0,.22)'; circle(c, x + 10, y + 14, s); c.fill(); c.restore();
+    const g = c.createRadialGradient(x - s * .4, y - s * .45, s * .1, x, y, s);
+    g.addColorStop(0, mix(cream, '#ffffff', .6)); g.addColorStop(.7, cream); g.addColorStop(1, mix(cream, '#7a6040', .35));
+    c.fillStyle = g; circle(c, x, y, s); c.fill();
+    c.strokeStyle = rgba(mix(cream, '#7a6040', .5), .4); c.lineWidth = 3;
+    c.beginPath(); c.arc(x, y, s * .6, a + 1, a + 2.6); c.stroke();
+  }
+}
+
+const ART = {};
+
+ART.crema = (c, P, R, r) => {
+  // Espresso crema: golden foam, a dark ring at the edge and dark flecks that
+  // follow the swirl of the pour.
+  cremaSurface(c, P, R, r);
+  const base = ing(P, 'crema'), fleck = mix(base, roastColor(.95), .55), lite = mix(base, '#f2c890', .45);
+  // The flecks go on a small layer that gets one soft blur.
+  const size = Math.ceil(R * 2 * S), cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const fx = cv.getContext('2d'); fx.setTransform(S, 0, 0, S, R * S, R * S);
+  for (let i = 0; i < 1100; i++) {
+    const a = r() * Math.PI * 2, d = Math.pow(r(), .7) * R * .96, len = 3 + Math.pow(r(), 3) * 12;
+    fx.save(); fx.translate(Math.cos(a) * d, Math.sin(a) * d); fx.rotate(a + Math.PI / 2 + d / R * 1.2);
+    fx.fillStyle = rgba(r() < .7 ? fleck : lite, .08 + r() * .16);
+    fx.beginPath(); fx.ellipse(0, 0, len, len * .55, 0, 0, Math.PI * 2); fx.fill();
+    fx.restore();
+  }
+  c.save(); c.filter = blur(2); c.drawImage(cv, -R, -R, R * 2, R * 2); c.restore();
+  bubbles(c, R, r, mix(base, '#ffffff', .4), 60, 7);
+};
+
+ART.black = (c, P, R, r) => {
+  const coffee = blend(P, t_layers(P));
+  const g = c.createRadialGradient(0, 0, R * .2, 0, 0, R);
+  g.addColorStop(0, mix(coffee, '#000000', .15)); g.addColorStop(1, mix(coffee, '#000000', .45));
+  c.fillStyle = g; c.fillRect(-R, -R, R * 2, R * 2);
+  // Oil ring at the edge
+  c.strokeStyle = rgba(mix(coffee, '#d09050', .5), .55); c.lineWidth = 10; c.filter = blur(4); circle(c, 0, 0, R - 6); c.stroke(); c.filter = 'none';
+  bubbles(c, R, r, mix(coffee, '#ffffff', .4), 18, 8);
+};
+
+ART.golden = (c, P, R, r) => {
+  const tea = mix(mix(roastColor(.05), '#c8903a', .5), P.accent, .1);
+  const g = c.createRadialGradient(0, R * .15, R * .1, 0, 0, R);
+  g.addColorStop(0, mix(tea, '#ffd890', .25)); g.addColorStop(.7, tea); g.addColorStop(1, mix(tea, '#3a1a08', .5));
+  c.fillStyle = g; c.fillRect(-R, -R, R * 2, R * 2);
+  // The bottom of the cup shows through
+  c.strokeStyle = rgba('#ffffff', .12); c.lineWidth = 8; circle(c, 0, R * .08, R * .55); c.stroke();
+};
+
+ART.milky = (c, P, R, r) => {
+  // Milky coffee is warmer and lighter than the plain average of its parts.
+  const col = mix(blend(P, t_layers(P)), '#c08850', .35);
+  crema_base(c, P, R, col);
+  c.save(); c.filter = blur(16); c.strokeStyle = rgba(mix(col, '#fff4e0', .5), .5); c.lineWidth = R * .08; c.lineCap = 'round';
+  c.beginPath(); for (let i = 0; i < 100; i++) { const a = i / 100 * Math.PI * 3.2 + 1, rr = R * (.8 - i / 100 * .6); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.stroke(); c.restore();
+  bubbles(c, R, r, mix(col, '#ffffff', .5), 70, 10);
+};
+
+ART.heart = (c, P, R, r) => {
+  cremaSurface(c, P, R, r);
+  const milk = ing(P, 'steamed milk'), cr = ing(P, 'crema');
+  const s = R * .8;
+  // A stacked heart: rings of milk and crema
+  milkShape(c, P, x => heartPath(x, -R * .02, s), milk);
+  c.save(); c.filter = blur(3);
+  c.fillStyle = cr; heartPath(c, -R * .12, s * .74); c.fill();
+  c.fillStyle = milk; heartPath(c, -R * .19, s * .56); c.fill();
+  c.fillStyle = cr; heartPath(c, -R * .25, s * .36); c.fill();
+  c.fillStyle = milk; heartPath(c, -R * .3, s * .2); c.fill();
+  c.restore();
+  c.strokeStyle = milk; c.lineWidth = 8; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0, -R * .62); c.lineTo(0, -R * .02 + s * .95); c.stroke();
+};
+
+ART.rosetta = (c, P, R, r) => {
+  cremaSurface(c, P, R, r);
+  const milk = ing(P, 'steamed milk'), n = 10;
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1), y = -R * .7 + t * R * 1.36;
+    const w = R * lerp(.24, .86, Math.pow(t, .8)), h = w * .32;
+    const tilt = (r() - .5) * 16;
+    milkShape(c, P, x => crescent(x, y, w, h, tilt), milk);
+  }
+  milkShape(c, P, x => heartPath(x, -R * .8, R * .12), milk);
+  c.strokeStyle = milk; c.lineWidth = 7; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0, -R * .78); c.quadraticCurveTo(R * .03, 0, 0, R * .8); c.stroke();
+};
+
+ART.tulip = (c, P, R, r) => {
+  cremaSurface(c, P, R, r);
+  const milk = ing(P, 'steamed milk');
+  const rows = [[-R * .5, R * .3], [-R * .16, R * .5], [R * .2, R * .64], [R * .54, R * .76]];
+  rows.forEach(([y, w], i) => {
+    if (i === 0) { milkShape(c, P, x => { x.beginPath(); x.ellipse(0, y, w, w * .8, 0, 0, Math.PI * 2); }, milk); return; }
+    milkShape(c, P, x => crescent(x, y - w * .25, w, w * .55), milk);
+  });
+  c.strokeStyle = milk; c.lineWidth = 6; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0, -R * .4); c.lineTo(0, R * .9); c.stroke();
+  if (P.art === 'chai') speckle(c, R * .8, r, '#7a3a14', 900, 3, .55, 1);
+};
+ART.chai = ART.tulip;
+
+ART.dot = (c, P, R, r) => {
+  ART.crema(c, P, R, r);
+  const milk = ing(P, 'milk foam');
+  milkShape(c, P, x => { x.beginPath(); x.ellipse(R * .05, R * .02, R * .3, R * .27, .3, 0, Math.PI * 2); }, milk);
+  bubbles(c, R * .28, r, '#ffffff', 25, 5);
+};
+
+ART.stain = (c, P, R, r) => {
+  const milk = ing(P, 'milk foam');
+  crema_base(c, P, R, milk);
+  bubbles(c, R, r, mix(milk, '#a08060', .4), 70, 7);
+  const n = makeNoise(P.index * 5 + 3);
+  c.save(); c.filter = blur(14);
+  c.beginPath();
+  for (let i = 0; i <= 80; i++) { const a = i / 80 * Math.PI * 2, rr = R * .24 * (1 + n(Math.cos(a) * 1.5, Math.sin(a) * 1.5) * .5); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(rr, 0); }
+  c.fillStyle = rgba(ing(P, 'crema'), .85); c.fill(); c.restore();
+};
+
+ART.foam = (c, P, R, r) => {
+  const top = t_layers(P), name = [...top].reverse().find(([n]) => FOAMY.test(n))?.[0] || 'foam';
+  const foam = ing(P, name);
+  crema_base(c, P, R, foam);
+  const n = makeNoise(P.index * 11 + 1);
+  for (let i = 0; i < 1400; i++) {
+    const a = r() * Math.PI * 2, d = Math.pow(r(), .55) * R * .98, s = Math.pow(r(), 3) * 12 + 2;
+    const x = Math.cos(a) * d, y = Math.sin(a) * d;
+    c.fillStyle = rgba(mix(foam, n(x * .01, y * .01) > 0 ? '#ffffff' : '#6a4020', .3), .35);
+    circle(c, x, y, s); c.fill();
+  }
+  bubbles(c, R, r, mix(foam, '#ffffff', .6), 120, 9);
+};
+
+ART.cream = (c, P, R, r) => {
+  ART.black(c, P, R, r);
+  whipped(c, P, R, ing(P, 'whipped cream'), r);
+};
+
+ART.float = (c, P, R, r) => {
+  const cream = ing(P, 'cream');
+  ART.black(c, P, R, r);
+  const g = c.createRadialGradient(-R * .2, -R * .2, R * .1, 0, 0, R * .9);
+  g.addColorStop(0, mix(cream, '#ffffff', .4)); g.addColorStop(1, cream);
+  c.save(); c.filter = blur(6); c.fillStyle = g; circle(c, 0, 0, R * .88); c.fill(); c.restore();
+  speckle(c, R * .8, r, roastColor(P.roast), 140, 4, .4);
+};
+
+ART.dust = (c, P, R, r) => {
+  const foam = ing(P, 'milk foam');
+  crema_base(c, P, R, foam);
+  bubbles(c, R, r, mix(foam, '#a08060', .4), 60, 7);
+  // Cocoa dust, then a stencil heart in foam on top
+  const cocoa = ing(P, 'cocoa powder');
+  for (let i = 0; i < 9000; i++) {
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * R * .85;
+    c.fillStyle = rgba(cocoa, .25 + r() * .5);
+    c.fillRect(Math.cos(a) * d, Math.sin(a) * d, 3 + r() * 3, 3 + r() * 3);
+  }
+  c.save(); c.filter = blur(3); c.fillStyle = foam; heartPath(c, -R * .02, R * .36); c.fill(); c.restore();
+};
+
+ART.lemon = (c, P, R, r) => ART.crema(c, P, R, r);
+
+ART.affogato = (c, P, R, r) => {
+  const espresso = ing(P, 'espresso'), gel = ing(P, 'vanilla gelato');
+  crema_base(c, P, R, mix(espresso, '#7a4a28', .3));
+  const n = makeNoise(P.index * 3 + 2);
+  const path = (x, s) => { x.beginPath(); for (let i = 0; i <= 90; i++) { const a = i / 90 * Math.PI * 2, rr = s * (1 + n(Math.cos(a) * 2, Math.sin(a) * 2) * .14); i ? x.lineTo(Math.cos(a) * rr - R * .05, Math.sin(a) * rr) : x.moveTo(rr - R * .05, 0); } };
+  c.save(); c.filter = blur(20); c.fillStyle = 'rgba(0,0,0,.4)'; path(c, R * .6); c.fill(); c.restore();
+  const g = c.createRadialGradient(-R * .3, -R * .3, R * .05, -R * .05, 0, R * .62);
+  g.addColorStop(0, mix(gel, '#ffffff', .6)); g.addColorStop(.7, gel); g.addColorStop(1, mix(gel, '#8a6a40', .4));
+  c.fillStyle = g; path(c, R * .58); c.fill();
+  // Espresso runs down the scoop
+  c.save(); c.globalAlpha = .75; c.fillStyle = espresso; c.filter = blur(5);
+  for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(-R * .05 + (r() - .5) * R * .5, -R * .1 + (r() - .5) * R * .4, R * (.08 + r() * .1), R * (.04 + r() * .05), r() * 3, 0, Math.PI * 2); c.fill(); }
+  c.restore();
+};
+
+ART.caramel = (c, P, R, r) => {
+  const foam = ing(P, 'milk foam'), car = ing(P, 'caramel');
+  crema_base(c, P, R, foam);
+  bubbles(c, R, r, mix(foam, '#a08060', .4), 60, 7);
+  c.save(); c.lineCap = 'round';
+  for (const ang of [Math.PI / 4, -Math.PI / 4]) {
+    c.save(); c.rotate(ang);
+    for (let x = -R; x <= R; x += R * .2) {
+      c.beginPath(); c.moveTo(x, -R); c.lineTo(x + (r() - .5) * 20, R);
+      c.strokeStyle = car; c.lineWidth = 12; c.stroke();
+      c.strokeStyle = rgba('#ffffff', .35); c.lineWidth = 3; c.stroke();
+    }
+    c.restore();
+  }
+  c.strokeStyle = car; c.lineWidth = 12; circle(c, 0, 0, R * .82); c.stroke();
+  c.restore();
+};
+
+ART.egg = (c, P, R, r) => {
+  const egg = ing(P, 'egg cream');
+  crema_base(c, P, R, egg);
+  const n = makeNoise(P.index * 13 + 9);
+  for (let i = 0; i < 26; i++) {
+    c.strokeStyle = rgba(mix(egg, '#ffffff', .5), .4); c.lineWidth = 5;
+    c.beginPath(); c.arc(0, 0, R * (.1 + i * .033), i * .7, i * .7 + 2 + n(i, 1) * 2); c.stroke();
+  }
+  speckle(c, R * .3, r, ing(P, 'cocoa powder'), 400, 4, .6, 1);
+};
+
+ART.cheese = (c, P, R, r) => {
+  ART.black(c, P, R, r);
+  const cheese = ing(P, 'cheese');
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2 + r(), d = R * (.25 + r() * .35), s = R * .26;
+    c.save(); c.translate(Math.cos(a) * d, Math.sin(a) * d); c.rotate(r() * 2);
+    c.filter = blur(6); c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.roundRect(-s / 2 + 8, -s / 2 + 10, s, s, 14); c.fill(); c.filter = 'none';
+    const g = c.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2);
+    g.addColorStop(0, mix(cheese, '#ffffff', .4)); g.addColorStop(1, mix(cheese, '#a07030', .3));
+    c.fillStyle = g; c.beginPath(); c.roundRect(-s / 2, -s / 2, s, s, 14); c.fill();
+    for (let k = 0; k < 4; k++) { c.fillStyle = rgba('#8a5020', .5); circle(c, (r() - .5) * s * .7, (r() - .5) * s * .7, 6 + r() * 6); c.fill(); }
+    c.restore();
+  }
+};
+
+ART.cinnamon = (c, P, R, r) => ART.black(c, P, R, r);
+
+ART.candy = (c, P, R, r) => {
+  ART.black(c, P, R, r);
+  whipped(c, P, R, ing(P, 'whipped cream'), r);
+  for (let i = 0; i < 70; i++) {
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * R * .7;
+    c.save(); c.translate(Math.cos(a) * d, Math.sin(a) * d); c.rotate(r() * 3);
+    c.fillStyle = r() < .5 ? mix('#d0202a', P.accent, .2) : '#fbf4f0';
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(10 + r() * 14, 4); c.lineTo(4, 12 + r() * 10); c.closePath(); c.fill();
+    c.restore();
+  }
+};
+
+ART.spice = (c, P, R, r) => {
+  ART.black(c, P, R, r);
+  whipped(c, P, R, ing(P, 'whipped cream'), r);
+  speckle(c, R * .7, r, '#9a4a18', 1600, 3, .6, 1);
+};
+
+ART.ice = (c, P, R, r) => {
+  const layers = t_layers(P);
+  const col = blend(P, layers);
+  crema_base(c, P, R, col);
+  // Milk drinks swirl
+  if (layers.some(([n]) => /milk/.test(n))) {
+    const milk = ing(P, 'cold milk');
+    c.save(); c.filter = blur(18); c.strokeStyle = rgba(milk, .55); c.lineWidth = R * .12; c.lineCap = 'round';
+    c.beginPath(); for (let i = 0; i < 120; i++) { const a = i / 120 * Math.PI * 4, rr = R * (.85 - i / 120 * .7); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(rr, 0); } c.stroke(); c.restore();
+  }
+  if (layers.some(([n]) => n === 'tonic water')) bubbles(c, R, r, '#ffffff', 220, 6);
+  iceCubes(c, P, R, r, 5);
+  if (P.art === 'icelemon') { c.save(); c.translate(R * .25, -R * .3); c.rotate(.4); c.globalAlpha = .9; c.fillStyle = '#f1d64a'; circle(c, 0, 0, R * .26); c.fill(); c.fillStyle = '#fbf3cf'; circle(c, 0, 0, R * .23); c.fill(); c.restore(); }
+  // A straw
+  c.save(); c.fillStyle = mix(P.second, '#ffffff', .2); circle(c, -R * .35, R * .38, R * .07); c.fill();
+  c.fillStyle = 'rgba(0,0,0,.45)'; circle(c, -R * .35, R * .38, R * .045); c.fill(); c.restore();
+};
+ART.icelemon = ART.ice;
+
+ART.dalgona = (c, P, R, r) => {
+  ART.ice(c, P, R, r);
+  const foam = ing(P, 'whipped coffee');
+  c.save(); c.filter = blur(5); c.fillStyle = foam; circle(c, 0, 0, R * .8); c.fill(); c.restore();
+  whipped(c, P, R, foam, r, .9);
+};
+
+// Recipe layers of the current theme.
+let CURRENT = null;
+const t_layers = P => CURRENT.layers;
+
+// The cups draw at 1.3 times the table sizes, the saucers at 1.1 times.
+function cup(ctx, P, x, y, r, noise) {
+  const base = CUPS[CURRENT.vessel] || CUPS.cup;
+  const spec = { ...base, R: base.R * 1.3, rim: base.rim * 1.3, saucer: base.saucer * 1.1, handle: base.handle * 1.3 };
+  const R = spec.R, rim = spec.rim;
+  const isGlass = spec.material === 'glass';
+  const col = material(P, spec.material);
+  const handleAngle = .5 + (r() - .5) * .3;
+
+  if (spec.saucer) saucer(ctx, P, x, y, spec.saucer);
+  if (isGlass) {
+    // A coaster under the glass
+    const coaster = P.light ? mix('#d8c3a0', P.bg, .3) : mix('#6a5038', P.bg, .45);
+    shadowed(ctx, P, lx => { lx.fillStyle = coaster; circle(lx, x + 20, y + 30, R + 150); lx.fill(); lx.strokeStyle = rgba(mix(coaster, '#000000', .3), .5); lx.lineWidth = 6; circle(lx, x + 20, y + 30, R + 128); lx.stroke(); }, { dx: 14, dy: 20, radius: 24, box: [x - R - 140, y - R - 130, x + R + 180, y + R + 190] });
+  }
+
+  shadowed(ctx, P, lx => {
+    if (spec.handle) {
+      const hx = x + Math.cos(handleAngle) * (R + rim), hy = y + Math.sin(handleAngle) * (R + rim);
+      lx.save(); lx.translate(hx, hy); lx.rotate(handleAngle);
+      const hl = 170 * spec.handle, hw = 92 * spec.handle;
+      const g = lx.createLinearGradient(0, -hw / 2, 0, hw / 2);
+      g.addColorStop(0, mix(col, '#ffffff', .2)); g.addColorStop(1, mix(col, '#000000', .3));
+      lx.fillStyle = g; lx.beginPath(); lx.roundRect(-20, -hw / 2, hl, hw, hw * .45); lx.fill();
+      lx.fillStyle = rgba('#000000', .18); lx.beginPath(); lx.roundRect(hl * .25, -hw * .18, hl * .5, hw * .36, hw * .18); lx.fill();
+      lx.restore();
+    }
+    if (isGlass) {
+      lx.fillStyle = rgba(P.light ? '#ffffff' : '#c8d8e0', P.light ? .35 : .12); circle(lx, x, y, R + rim); lx.fill();
+    } else {
+      const g = lx.createLinearGradient(x - R, y - R, x + R, y + R);
+      g.addColorStop(0, mix(col, '#ffffff', .22)); g.addColorStop(1, mix(col, '#000000', .25));
+      lx.fillStyle = g; circle(lx, x, y, R + rim); lx.fill();
+    }
+  }, { ...(isGlass ? { alpha: P.light ? .15 : .35, radius: 50 } : {}), box: [x - R - rim - 320, y - R - rim - 320, x + R + rim + 320, y + R + rim + 320] });
+
+  if (spec.material === 'enamel') {
+    // Speckled enamel and a dark rim line
+    for (let i = 0; i < 300; i++) { const a = r() * Math.PI * 2, d = R + r() * rim; ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d, 4, 4); }
+    ctx.strokeStyle = '#1d2230'; ctx.lineWidth = 12; circle(ctx, x, y, R + rim - 6); ctx.stroke();
+  }
+  if (spec.material === 'wood') {
+    ctx.save(); ctx.strokeStyle = rgba('#4a2a10', .35); ctx.lineWidth = 3;
+    for (let i = 0; i < 8; i++) { circle(ctx, x + 10, y + 6, R + 8 + i * 8); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // Inner wall: in shadow at the top left, lit at the bottom right
+  if (!isGlass) {
+    const wall = ctx.createLinearGradient(x - R, y - R, x + R, y + R);
+    wall.addColorStop(0, mix(col, '#000000', .35)); wall.addColorStop(1, mix(col, '#ffffff', .12));
+    ctx.fillStyle = wall; circle(ctx, x, y, R + rim * .45); ctx.fill();
+  }
+
+  // The drink
+  ctx.save(); circle(ctx, x, y, R); ctx.clip();
+  ctx.translate(x, y); ctx.rotate((r() - .5) * .35);
+  (ART[CURRENT.art] || ART.black)(ctx, P, R, r);
+  ctx.restore();
+
+  // The rim casts a soft shadow on the drink at the top left
+  ctx.save(); circle(ctx, x, y, R); ctx.clip();
+  const sh = ctx.createRadialGradient(x + R * .18, y + R * .22, R * .7, x, y, R * 1.05);
+  sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, `rgba(0,0,0,${P.light ? .28 : .45})`);
+  ctx.fillStyle = sh; ctx.fillRect(x - R, y - R, R * 2, R * 2);
+  // Window reflection
+  ctx.filter = blur(18); ctx.fillStyle = `rgba(255,255,255,${['ice', 'icelemon', 'black', 'golden'].includes(CURRENT.art) ? .18 : .08})`;
+  ctx.beginPath(); ctx.roundRect(x - R * .62, y - R * .7, R * .34, R * .26, 20); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(x - R * .24, y - R * .74, R * .3, R * .26, 20); ctx.fill();
+  ctx.restore();
+
+  // Rim highlights
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = `rgba(255,255,255,${isGlass ? .7 : .35})`; ctx.lineWidth = isGlass ? 6 : 5;
+  ctx.beginPath(); ctx.arc(x, y, R + rim - 4, Math.PI * 1.0, Math.PI * 1.55); ctx.stroke();
+  ctx.strokeStyle = `rgba(255,255,255,${isGlass ? .45 : .2})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y, R + 2, Math.PI * .05, Math.PI * .55); ctx.stroke();
+  if (isGlass) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; circle(ctx, x, y, R + rim); ctx.stroke(); }
+  ctx.restore();
+  return { R: R + rim, saucer: spec.saucer, handleAngle };
+}
+
+function latteArt(ctx, P, r, noise) {
+  table(ctx, P, r, noise);
+  const x = W * .6, y = H * .52;
+  // Beans scattered on the table, behind the cup
+  const base = mix(roastColor(P.roast), P.accent, .1);
+  for (let i = 0; i < 7; i++) {
+    const a = r() * Math.PI * 2, d = 900 + r() * 500;
+    const bx = x + Math.cos(a) * d * 1.3, by = y + Math.sin(a) * d * .7;
+    if (bx < 120 || bx > W - 120 || by < 120 || by > H - 120) continue;
+    bean(ctx, P, bx, by, 110 + r() * 20, r() * 6.3, base, r() < .6, P.light ? .3 : .55, P.roast > .66);
+  }
+  const res = cup(ctx, P, x, y, r, noise);
+  // Props on the saucer or the table
+  const rim = res.saucer ? res.saucer * .82 : res.R + 180;
+  const pa = res.handleAngle + (res.saucer ? 1.2 : 1.9);
+  if (CURRENT.art === 'lemon') lemonWheel(ctx, P, x + Math.cos(pa) * rim, y + Math.sin(pa) * rim, 110, r());
+  else if (CURRENT.art === 'cinnamon') { cinnamonStick(ctx, P, x - res.R - 380, y + 260, 520, -.5); starAnise(ctx, P, x - res.R - 180, y + 470, 70); }
+  else if (CURRENT.art === 'chai') starAnise(ctx, P, x + Math.cos(pa) * rim, y + Math.sin(pa) * rim, 64);
+  else if (res.saucer) spoon(ctx, P, x + Math.cos(pa) * rim, y + Math.sin(pa) * rim, pa + Math.PI / 2 + .3, res.saucer * .7);
+  if (!res.saucer && !['cinnamon'].includes(CURRENT.art)) {
+    sugarCube(ctx, P, x - res.R - 300, y + 380, 150, .3);
+    sugarCube(ctx, P, x - res.R - 120, y + 500, 150, -.2);
+  }
+  vignette(ctx, P, P.light ? .16 : .45);
+  grain(ctx, P.index * 23, .05);
+}
+
+// ---------- recipe ----------
+
+// Side profiles: [height fraction, outer half width] from the bottom up.
+const VESSELS = {
+  demitasse: { h: 330, prof: [[0, 125], [.15, 155], [.6, 185], [1, 195]], wall: 18, fill: .8, handle: 'small', saucer: 340 },
+  cup: { h: 470, prof: [[0, 150], [.2, 210], [.6, 258], [1, 272]], wall: 18, fill: .86, handle: 'cup', saucer: 430 },
+  mug: { h: 600, prof: [[0, 232], [1, 242]], wall: 24, fill: .88, handle: 'mug' },
+  enamel: { h: 540, prof: [[0, 240], [1, 245]], wall: 14, fill: .86, handle: 'mug', rimLine: true },
+  glass: { h: 430, prof: [[0, 170], [1, 196]], wall: 10, base: 44, fill: .9, glass: true },
+  tall: { h: 880, prof: [[0, 150], [1, 186]], wall: 10, base: 54, fill: .92, glass: true },
+  tumbler: { h: 620, prof: [[0, 198], [1, 236]], wall: 10, base: 54, fill: .9, glass: true },
+  bowl: { h: 380, prof: [[0, 150], [.2, 262], [.6, 330], [1, 346]], wall: 18, fill: .82, foot: [120, 26] },
+  stemmed: { h: 500, prof: [[0, 140], [.15, 186], [1, 206]], wall: 10, fill: .9, glass: true, stem: 180, footW: 190 },
+  coupe: { h: 210, prof: [[0, 30], [.3, 200], [.7, 300], [1, 330]], wall: 8, fill: .86, glass: true, stem: 300, footW: 175 },
+  clay: { h: 520, prof: [[0, 190], [.45, 252], [.85, 226], [1, 236]], wall: 22, fill: .85, handle: 'mug' },
+  finjan: { h: 260, prof: [[0, 112], [.5, 152], [1, 176]], wall: 12, fill: .8 },
+  guksi: { h: 360, prof: [[0, 170], [.3, 242], [1, 272]], wall: 22, fill: .8, handle: 'guksi' },
+};
+
+function halfWidth(v, t) {
+  const p = v.prof;
+  for (let i = 1; i < p.length; i++) if (t <= p[i][0]) return lerp(p[i - 1][1], p[i][1], (t - p[i - 1][0]) / (p[i][0] - p[i - 1][0]));
+  return p[p.length - 1][1];
+}
+
+// Draws the left text column: the category, the name and the description.
+function titleBlock(ctx, P, x, y) {
+  const label = `${P.category.toUpperCase()}  ·  ${String(P.index).padStart(2, '0')} / 82`;
+  text(ctx, label, x, y, 40, P.c[8], { spacing: 8 });
+  // Long names shrink to fit the column
+  let size = 230;
+  ctx.save(); ctx.font = `300 ${size}px ${SERIF}`; const w = ctx.measureText(P.base).width; ctx.restore();
+  if (w > 1500) size = Math.floor(size * 1500 / w);
+  text(ctx, P.base, x - 8, y + 40 + size, size, P.fg, { font: SERIF, weight: '300' });
+  ctx.fillStyle = P.accent; ctx.fillRect(x, y + 120 + size, 140, 8);
+  const words = P.desc.split(' '), lines = [];
+  let line = '';
+  ctx.save(); ctx.font = `52px ${MONO}`;
+  for (const wd of words) { const tst = line ? `${line} ${wd}` : wd; if (ctx.measureText(tst).width > 1420 && line) { lines.push(line); line = wd; } else line = tst; }
+  ctx.restore();
+  lines.push(line);
+  lines.forEach((l, i) => text(ctx, l, x, y + 260 + size + i * 74, 52, P.dfg));
+  return y + 260 + size + lines.length * 74;
+}
+
+function chip(ctx, P, x, y, label) {
+  ctx.save(); ctx.font = `44px ${MONO}`; const w = ctx.measureText(label).width + 64; ctx.restore();
+  ctx.fillStyle = rgba(P.accent, P.light ? .1 : .12); ctx.beginPath(); ctx.roundRect(x, y, w, 86, 43); ctx.fill();
+  ctx.strokeStyle = rgba(P.accent, .55); ctx.lineWidth = 3; ctx.stroke();
+  text(ctx, label, x + 32, y + 58, 44, P.fg);
+  return w;
+}
+
+function paperBase(ctx, P, noise) {
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+  pixels(ctx, (x, y) => {
+    const v = noise.fbm(x * .003, y * .003, 3) * .5 + noise(x * .08, y * .08) * .2;
+    return rgb(P.bg).map(ch => ch * (1 + v * (P.light ? .03 : .08)));
+  }, 1400);
+  // Dot grid
+  ctx.fillStyle = rgba(P.c[8], P.light ? .22 : .18);
+  for (let y = 90; y < H; y += 90) for (let x = 90; x < W; x += 90) ctx.fillRect(x - 3, y - 3, 6, 6);
+}
+
+function recipeDrink(ctx, P, r, noise) {
+  paperBase(ctx, P, noise);
+  let ty = titleBlock(ctx, P, 300, 420);
+  const chips = [...CURRENT.notes];
+  if (CURRENT.origin) chips.unshift(CURRENT.origin);
+  let cx = 300; ty += 60;
+  chips.forEach(cp => { cx += chip(ctx, P, cx, ty, cp) + 24; });
+
+  const v = VESSELS[CURRENT.vessel] || VESSELS.cup;
+  const below = (v.stem || 0) + (v.foot ? v.foot[1] : 0) + (v.saucer ? 40 : 0);
+  // Whipped cream rises above the rim, so it needs room too.
+  const dome = /whipped/.test(CURRENT.layers[CURRENT.layers.length - 1][0]) ? v.h * .36 : 0;
+  const span = Math.max(...v.prof.map(p => p[1])) * 2 + (v.handle ? 220 : 0);
+  const scale = Math.min(2.4, 1250 / (v.h + below + dome), 1400 / Math.max(span, (v.saucer || 0) * 2));
+  // The labels start at LABEL_X. The vessel and its handle sit to the left of them.
+  const LABEL_X = 3080;
+  const widest = Math.max(...v.prof.map(p => p[1]), v.saucer || 0, v.footW || 0);
+  const right = Math.max(...v.prof.map(p => p[1])) + (v.handle ? 200 : 0);
+  const ox = Math.min(2450, LABEL_X - 160 - Math.max(right, v.saucer || 0) * scale), base = 1720 - below * scale;
+  ctx.save(); ctx.translate(ox, base); ctx.scale(scale, scale);
+  const outline = P.light ? P.fg : mix(P.fg, P.bg, .1);
+  const glassFill = rgba(P.light ? '#ffffff' : '#c8d8e8', P.light ? .5 : .06);
+  const body = material(P, CURRENT.vessel === 'clay' ? 'clay' : CURRENT.vessel === 'guksi' ? 'wood' : CURRENT.vessel === 'enamel' ? 'enamel' : 'ceramic');
+  const outer = t => halfWidth(v, t);
+  const pathProfile = (inset, t0, t1, bottom) => {
+    ctx.beginPath();
+    const N = 40;
+    for (let i = 0; i <= N; i++) { const t = lerp(t0, t1, i / N); ctx.lineTo(-(outer(t) - inset), -t * v.h - bottom * (1 - t)); }
+    for (let i = N; i >= 0; i--) { const t = lerp(t0, t1, i / N); ctx.lineTo(outer(t) - inset, -t * v.h - bottom * (1 - t)); }
+    ctx.closePath();
+  };
+
+  // Saucer, stem and foot
+  if (v.saucer) {
+    ctx.fillStyle = v.glass ? glassFill : body;
+    ctx.beginPath(); ctx.roundRect(-v.saucer, 0, v.saucer * 2, 30, 15); ctx.fill();
+    ctx.strokeStyle = outline; ctx.lineWidth = 5 / scale * 1.4; ctx.stroke();
+  }
+  if (v.stem) {
+    ctx.fillStyle = glassFill; ctx.strokeStyle = outline; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-14, v.stem); ctx.lineTo(-v.footW, v.stem + 10); ctx.lineTo(-v.footW, v.stem + 26); ctx.lineTo(v.footW, v.stem + 26); ctx.lineTo(v.footW, v.stem + 10); ctx.lineTo(14, v.stem); ctx.lineTo(18, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.translate(0, 0);
+  }
+  if (v.foot) { ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-v.foot[0], -6, v.foot[0] * 2, v.foot[1], 8); ctx.fill(); ctx.strokeStyle = outline; ctx.lineWidth = 5; ctx.stroke(); }
+
+  // Body. Ceramic shows a cut through the wall, glass is clear.
+  if (v.handle) {
+    ctx.save(); ctx.strokeStyle = outline; ctx.lineWidth = 5;
+    const hw = outer(.6) - 6;
+    ctx.fillStyle = v.glass ? glassFill : body;
+    const hs = { small: [70, 120], cup: [110, 170], mug: [150, 300], guksi: [130, 120] }[v.handle] || [100, 150];
+    ctx.beginPath(); ctx.ellipse(hw + hs[0] * .45, -v.h * .55, hs[0], hs[1] / 2 + 30, 0, -Math.PI / 2, Math.PI / 2); ctx.lineTo(hw, -v.h * .55 + hs[1] / 2); ctx.lineTo(hw, -v.h * .55 + hs[1] / 2 - 34);
+    ctx.ellipse(hw + hs[0] * .45, -v.h * .55, hs[0] - 34, hs[1] / 2 - 4, 0, Math.PI / 2, -Math.PI / 2, true); ctx.lineTo(hw, -v.h * .55 - hs[1] / 2 - 30); ctx.closePath();
+    ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  pathProfile(0, 0, 1, 0);
+  ctx.fillStyle = v.glass ? glassFill : body; ctx.fill();
+
+  // The drink
+  const bottom = v.base || v.wall;
+  const layers = CURRENT.layers.filter(([n]) => n !== 'ice');
+  const hasIce = CURRENT.layers.some(([n]) => n === 'ice');
+  const total = layers.reduce((a, [, p]) => a + p, 0);
+  const t0 = bottom / v.h, t1 = v.fill;
+  const g = ctx.createLinearGradient(0, -t0 * v.h, 0, -t1 * v.h);
+  let acc = 0;
+  const bands = layers.map(([name, parts]) => {
+    const a = acc / total, b = (acc + parts) / total; acc += parts;
+    return { name, parts, a: lerp(t0, t1, a), b: lerp(t0, t1, b), col: ing(P, name) };
+  });
+  bands.forEach((bd, i) => {
+    const fa = (bd.a - t0) / (t1 - t0), fb = (bd.b - t0) / (t1 - t0), soft = .012;
+    g.addColorStop(clamp(fa + (i ? soft : 0), 0, 1), bd.col);
+    g.addColorStop(clamp(fb - (i < bands.length - 1 ? soft : 0), 0, 1), bd.col);
+  });
+  pathProfile(v.wall, t0, t1, 0);
+  ctx.fillStyle = g; ctx.fill();
+  // Textures inside each band
+  bands.forEach(bd => {
+    ctx.save(); pathProfile(v.wall, bd.a, bd.b, 0); ctx.clip();
+    const yb = -bd.a * v.h, yt = -bd.b * v.h, wmax = outer(bd.b);
+    if (FOAMY.test(bd.name) && !/steamed|cold|hot|condensed|half|foamed milk|^milk$/.test(bd.name)) {
+      for (let i = 0; i < 160; i++) { ctx.strokeStyle = rgba('#ffffff', .25 + r() * .3); ctx.lineWidth = 2; circle(ctx, (r() - .5) * wmax * 2, lerp(yb, yt, r()), 3 + Math.pow(r(), 3) * 16); ctx.stroke(); }
+    }
+    if (/grounds|cocoa|fines/.test(bd.name)) for (let i = 0; i < 900; i++) { ctx.fillStyle = rgba('#000000', .25 + r() * .3); ctx.fillRect((r() - .5) * wmax * 2, lerp(yb, yt, r()), 4, 4); }
+    if (/tonic/.test(bd.name)) for (let i = 0; i < 120; i++) { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2; circle(ctx, (r() - .5) * wmax * 2, lerp(yb, yt, r()), 3 + r() * 6); ctx.stroke(); }
+    if (/cheese/.test(bd.name)) for (let i = 0; i < 4; i++) { ctx.fillStyle = ing(P, 'cheese'); ctx.beginPath(); ctx.roundRect(-wmax * .7 + i * wmax * .38, yt + 10, 70, 70, 12); ctx.fill(); }
+    ctx.restore();
+  });
+  if (hasIce) {
+    ctx.save(); pathProfile(v.wall, t0, t1, 0); ctx.clip();
+    for (let i = 0; i < 7; i++) {
+      const s = 120 + r() * 40, x = (r() - .5) * (outer(.6) - s), y = -lerp(t1 * .45, t1 * .95, r()) * v.h;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(r());
+      ctx.fillStyle = 'rgba(235,245,250,.35)'; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, 22); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
+  }
+  // Whipped cream rises over the rim
+  const top = bands[bands.length - 1];
+  if (top && /whipped/.test(top.name)) {
+    // Piped tiers, each narrower and higher, then a curled tip
+    const wt = outer(t1) - v.wall, y0 = -t1 * v.h, hh = v.h * .34;
+    ctx.fillStyle = top.col; ctx.strokeStyle = outline; ctx.lineWidth = 5; ctx.lineJoin = 'round';
+    [[1, 0], [.76, .28], [.5, .54]].forEach(([w, lift]) => {
+      const half = wt * w, yb = y0 - hh * lift, th = hh * .5;
+      ctx.beginPath(); ctx.moveTo(-half, yb);
+      ctx.bezierCurveTo(-half, yb - th, half, yb - th, half, yb);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    });
+    const tb = y0 - hh * .78, tw = wt * .26;
+    ctx.beginPath(); ctx.moveTo(-tw, tb);
+    ctx.bezierCurveTo(-tw, tb - hh * .3, tw * .1, tb - hh * .42, tw * .45, tb - hh * .38);
+    ctx.bezierCurveTo(tw * .2, tb - hh * .25, tw, tb - hh * .2, tw, tb);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  if (CURRENT.art === 'lemon' || CURRENT.layers.some(([n]) => n === 'lemon')) {
+    const x = outer(1) - 30, y = -v.h;
+    ctx.fillStyle = '#efcf3a'; circle(ctx, x, y, 70); ctx.fill(); ctx.fillStyle = '#fbf3cf'; circle(ctx, x, y, 60); ctx.fill();
+  }
+
+  // Outline and cut wall
+  ctx.lineJoin = 'round';
+  pathProfile(0, 0, 1, 0);
+  ctx.strokeStyle = outline; ctx.lineWidth = 6; ctx.stroke();
+  if (!v.glass) { pathProfile(v.wall, t0, 1, 0); ctx.strokeStyle = rgba(outline, .5); ctx.lineWidth = 3; ctx.stroke(); }
+  else {
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(-outer(.85) + 26, -v.h * .85); ctx.lineTo(-outer(.25) + 26, -v.h * .25); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Labels with leader lines, right of the vessel
+  // The labels keep the order of the layers, from the top down, so the
+  // leader lines never cross. A label moves down when it would touch the one
+  // above it, and the whole column moves up when it runs past the bottom.
+  const lx = LABEL_X, GAP = 130;
+  const marks = [...bands].reverse().map(bd => ({ bd, ym: base - (bd.a + bd.b) / 2 * v.h * scale }));
+  marks.forEach((m, i) => { m.y = i ? Math.max(m.ym, marks[i - 1].y + GAP) : m.ym; });
+  const over = marks.length ? marks[marks.length - 1].y - 1880 : 0;
+  if (over > 0) marks.forEach(m => { m.y -= over; });
+  marks.forEach(({ bd, ym, y }) => {
+    const ex = ox + (outer((bd.a + bd.b) / 2) - v.wall) * scale - 20;
+    ctx.strokeStyle = rgba(P.c[8], .9); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(ex, ym); ctx.lineTo(lx - 120, y); ctx.lineTo(lx - 30, y); ctx.stroke();
+    ctx.fillStyle = P.accent; circle(ctx, ex, ym, 9); ctx.fill();
+    text(ctx, bd.name, lx, y + 16, 50, P.fg);
+    text(ctx, pct(bd.parts, total), lx, y + 70, 40, P.c[8], { spacing: 4 });
+  });
+  if (hasIce && marks.length) text(ctx, '+ ice', lx, marks[0].y - GAP + 16, 50, P.fg);
+  vignette(ctx, P, P.light ? .12 : .35);
+  grain(ctx, P.index * 29, .04);
+}
+
+function recipeRoast(ctx, P, r, noise) {
+  paperBase(ctx, P, noise);
+  const ty = titleBlock(ctx, P, 300, 420);
+  chip(ctx, P, 300, ty + 60, `ends at ${CURRENT.temp} °C`);
+  // Chart
+  const x0 = 1900, x1 = 3500, y0 = 1560, y1 = 420, tMax = 16, tempMin = 80, tempMax = 260;
+  const X = t => lerp(x0, x1, t / tMax), Y = c => lerp(y0, y1, (c - tempMin) / (tempMax - tempMin));
+  ctx.strokeStyle = rgba(P.c[8], .7); ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x0, y1 - 40); ctx.lineTo(x0, y0); ctx.lineTo(x1 + 40, y0); ctx.stroke();
+  for (let t = 0; t <= tMax; t += 2) { text(ctx, `${t}`, X(t), y0 + 60, 36, P.c[8], { align: 'center' }); ctx.fillStyle = rgba(P.c[8], .7); ctx.fillRect(X(t) - 1.5, y0, 3, 14); }
+  text(ctx, 'minutes', x1, y0 + 120, 36, P.c[8], { align: 'right', spacing: 4 });
+  for (let c = 100; c <= 250; c += 50) { text(ctx, `${c}°`, x0 - 30, Y(c) + 12, 36, P.c[8], { align: 'right' }); }
+  const end = 9 + (CURRENT.temp - 196) / 49 * 6;
+  const bt = t => t < 1.5 ? 200 - (200 - 95) * Math.sin(t / 1.5 * Math.PI / 2) : 95 + (CURRENT.temp - 95) * (1 - Math.exp(-(t - 1.5) / 5)) / (1 - Math.exp(-(end - 1.5) / 5));
+  // Marks
+  [[150, 'drying ends'], [196, 'first crack'], [224, 'second crack']].forEach(([c, label]) => {
+    ctx.setLineDash([14, 14]); ctx.strokeStyle = rgba(P.c[8], .6); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x0, Y(c)); ctx.lineTo(x1, Y(c)); ctx.stroke(); ctx.setLineDash([]);
+    text(ctx, label, x1, Y(c) - 18, 38, P.dfg, { align: 'right' });
+  });
+  // Area under the curve fades from green beans to the roast color
+  const g = ctx.createLinearGradient(X(0), 0, X(end), 0);
+  g.addColorStop(0, rgba(mix('#8a9a60', P.bg, .2), .35)); g.addColorStop(.55, rgba(roastColor(.05), .35)); g.addColorStop(1, rgba(roastColor(P.roast), .55));
+  ctx.beginPath(); ctx.moveTo(X(0), y0);
+  for (let t = 0; t <= end; t += .05) ctx.lineTo(X(t), Y(bt(t)));
+  ctx.lineTo(X(end), y0); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+  ctx.beginPath(); for (let t = 0; t <= end; t += .05) ctx.lineTo(X(t), Y(bt(t)));
+  ctx.strokeStyle = P.accent; ctx.lineWidth = 9; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.fillStyle = P.accent; circle(ctx, X(end), Y(CURRENT.temp), 20); ctx.fill();
+  ctx.strokeStyle = P.fg; ctx.lineWidth = 4; circle(ctx, X(end), Y(CURRENT.temp), 34); ctx.stroke();
+  text(ctx, `${P.base}, ${CURRENT.temp} °C`, X(end) - 50, Y(CURRENT.temp) - 60, 46, P.fg, { align: 'right' });
+  // Roast scale with 7 beans
+  const names = ['Cinnamon', 'Light', 'City', 'Full City', 'Vienna', 'French', 'Italian'], levels = [.08, .22, .38, .52, .68, .84, .96];
+  names.forEach((nm, i) => {
+    const bx = lerp(x0 + 60, x1 - 60, i / 6), by = 1850, on = Math.abs(levels[i] - P.roast) < .02;
+    bean(ctx, P, bx, by, on ? 150 : 110, -.5, roastColor(levels[i]), true, P.light ? .25 : .5, levels[i] > .66);
+    text(ctx, nm, bx, by + 130, 34, on ? P.fg : P.c[8], { align: 'center' });
+    if (on) { ctx.strokeStyle = P.accent; ctx.lineWidth = 5; circle(ctx, bx, by, 120); ctx.stroke(); }
+  });
+  vignette(ctx, P, P.light ? .12 : .35);
+  grain(ctx, P.index * 37, .04);
+}
+
+function recipeCherry(ctx, P, r, noise) {
+  paperBase(ctx, P, noise);
+  titleBlock(ctx, P, 300, 420);
+  const cx = 2500, cy = 1110, skin = mix('#b3262a', P.accent, .35), pulp = mix('#f2d6a0', P.accent, .1);
+  const parch = '#ece0c2', silver = '#c6c8b6', seed = mix('#94a07e', P.second, .2);
+  ctx.save();
+  ctx.filter = blur(40); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cx + 40, cy + 60, 600, 650, 0, 0, Math.PI * 2); ctx.fill(); ctx.filter = 'none';
+  const g = ctx.createRadialGradient(cx - 240, cy - 260, 40, cx, cy, 660);
+  g.addColorStop(0, mix(skin, '#ffffff', .3)); g.addColorStop(.7, skin); g.addColorStop(1, mix(skin, '#000000', .4));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, 600, 650, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = pulp; ctx.beginPath(); ctx.ellipse(cx, cy, 530, 580, 0, 0, Math.PI * 2); ctx.fill();
+  for (const side of [-1, 1]) {
+    const bx = cx + side * 205;
+    ctx.save(); ctx.translate(bx, cy); ctx.scale(side, 1);
+    const half = (rx, ry) => { ctx.beginPath(); ctx.moveTo(-rx * .1, -ry); ctx.bezierCurveTo(rx * 1.3, -ry, rx * 1.3, ry, -rx * .1, ry); ctx.closePath(); };
+    ctx.translate(-150, 0);
+    ctx.fillStyle = parch; half(300, 450); ctx.fill();
+    ctx.fillStyle = silver; half(270, 420); ctx.fill();
+    const sg = ctx.createLinearGradient(0, -400, 260, 400);
+    sg.addColorStop(0, mix(seed, '#ffffff', .25)); sg.addColorStop(1, mix(seed, '#000000', .25));
+    ctx.fillStyle = sg; half(255, 405); ctx.fill();
+    ctx.strokeStyle = mix(seed, '#000000', .45); ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(70, -300); ctx.bezierCurveTo(110, -100, 40, 100, 80, 300); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+  const labels = [['outer skin', cx + 560, cy - 300], ['pulp', cx + 480, cy - 30], ['parchment', cx + 330, cy + 300], ['silver skin', cx + 300, cy + 140], ['bean', cx + 180, cy - 160]];
+  const lx = 3300;
+  labels.sort((a, b) => a[2] - b[2]).forEach(([name, px, py], i) => {
+    const y = 560 + i * 230;
+    ctx.strokeStyle = rgba(P.c[8], .9); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(lx - 120, y); ctx.lineTo(lx - 30, y); ctx.stroke();
+    ctx.fillStyle = P.accent; circle(ctx, px, py, 10); ctx.fill();
+    text(ctx, name, lx, y + 16, 50, P.fg);
+  });
+  vignette(ctx, P, P.light ? .12 : .35);
+  grain(ctx, P.index * 43, .04);
+}
+
+function recipe(ctx, P, r, noise) {
+  if (CURRENT.recipe === 'roast') recipeRoast(ctx, P, r, noise);
+  else if (CURRENT.recipe === 'cherry') recipeCherry(ctx, P, r, noise);
+  else recipeDrink(ctx, P, r, noise);
+}
+
+// ---------- entry point ----------
+
+const KINDS = { wordmark, 'latte-art': latteArt, recipe, crema, beans };
+
+window.renderImage = async (theme, kind, width, height, mime = 'image/png', quality = .92) => {
+  await document.fonts.load(`40px ${MONO}`);
+  await document.fonts.load(`300 40px ${SERIF}`);
+  const cv = document.getElementById('c');
+  cv.width = width; cv.height = height;
+  const ctx = cv.getContext('2d');
+  S = width / W;
+  ctx.setTransform(S, 0, 0, S, 0, 0);
+  CURRENT = theme;
+  const c = theme.colors;
+  const P = {
+    ...theme, light: c.mode === 'light', bg: c.background, fg: c.foreground, dfg: c.dark_foreground, darker: c.darker_background,
+    accent: c.accent, second: theme.second, c: theme.ansi, muted: c.muted, base: theme.base,
+  };
+  const r = rng(theme.index * 104729 + Object.keys(KINDS).indexOf(kind) * 7 + (P.light ? 3 : 0));
+  const noise = makeNoise(theme.index * 7907 + 3);
+  KINDS[kind](ctx, P, r, noise);
+  return cv.toDataURL(mime, quality);
+};
+</script>
+</body>
+</html>

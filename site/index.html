@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coffee Themes for Omarchy</title>
+<meta name="description" content="82 coffee themes for Omarchy, from espresso to Italian roast. Each theme has a night variant and a day variant, and each variant has 5 backgrounds at 6K.">
+<meta property="og:title" content="Coffee Themes for Omarchy">
+<meta property="og:description" content="82 coffee themes × night and day = 164 Omarchy themes, with 820 backgrounds at 6K.">
+<meta property="og:image" content="https://bjarneo.github.io/coffee-themes/assets/mosaic.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#15100c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f8f1e7" media="(prefers-color-scheme: light)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+  // Pick night or day before the first paint, so the page does not flash.
+  (() => {
+    let mode = null;
+    try { mode = localStorage.getItem('mode'); } catch {}
+    if (mode !== 'night' && mode !== 'day') mode = matchMedia('(prefers-color-scheme: light)').matches ? 'day' : 'night';
+    document.documentElement.dataset.mode = mode;
+  })();
+</script>
+<style>
+:root {
+  --bg: #15100c;
+  --surface: #1d1611;
+  --surface-2: #261d17;
+  --line: #31261e;
+  --line-2: #45362a;
+  --text: #f3e9dd;
+  --text-2: #d9c9b8;
+  --muted: #a08d7b;
+  --accent: #e0a56a;
+  --accent-ink: #1a110a;
+  --crema: #c9884f;
+  --radius: 14px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --serif: 'Fraunces', 'Noto Serif', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
+:root[data-mode="day"] {
+  --bg: #f8f1e7;
+  --surface: #fffaf3;
+  --surface-2: #f1e6d8;
+  --line: #e8dac8;
+  --line-2: #d8c4ac;
+  --text: #2a1c12;
+  --text-2: #4b3a2c;
+  --muted: #7a6656;
+  --accent: #9b5824;
+  --accent-ink: #fffaf3;
+  --crema: #b8743c;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.65 var(--mono);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .25s, color .25s;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 var(--gutter); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Header */
+.top { display: flex; align-items: center; gap: 18px; padding: 18px 0; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; color: var(--text); }
+.brand:hover { text-decoration: none; }
+.wordmark {
+  display: block; width: 118px; aspect-ratio: 1215 / 285;
+  background: linear-gradient(90deg, var(--accent), var(--crema));
+  -webkit-mask: url(assets/omarchy-wordmark.svg) center / contain no-repeat;
+  mask: url(assets/omarchy-wordmark.svg) center / contain no-repeat;
+}
+.brand span { color: var(--muted); font-size: 13px; }
+.top nav { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.top nav a { color: var(--text-2); font-size: 13px; padding: 8px 12px; border-radius: 9px; }
+.top nav a:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+
+/* Night and day switch */
+.mode { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-2); }
+.mode button { cursor: pointer; border: 0; background: none; color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+.mode button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.mode svg { width: 14px; height: 14px; }
+
+/* Hero */
+.hero { padding: clamp(36px, 6vw, 80px) 0 48px; display: grid; gap: clamp(28px, 4vw, 64px); grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; }
+.hero-text { display: grid; gap: 26px; min-width: 0; }
+.eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 {
+  margin: 0; font: 400 clamp(44px, 6.4vw, 96px)/1 var(--serif); letter-spacing: -.02em;
+  font-variation-settings: 'opsz' 144; text-wrap: balance;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.lead { margin: 0; max-width: 58ch; color: var(--text-2); font-size: clamp(14px, 1.3vw, 16px); }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 26px; color: var(--muted); font-size: 13px; }
+.stats b { color: var(--text); font-weight: 700; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 11px 18px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  border: 1px solid var(--line-2); background: var(--surface); color: var(--text);
+}
+.btn:hover { border-color: var(--muted); text-decoration: none; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.mosaic { margin: 0; border-radius: 18px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .55); background: var(--surface); }
+.mosaic img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+@media (max-width: 1000px) { .hero { grid-template-columns: 1fr; } }
+
+/* Code */
+.code {
+  position: relative; margin: 0; padding: 16px 18px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--line); overflow-x: auto;
+  font: 13px/1.7 var(--mono); color: var(--text-2); white-space: pre;
+}
+.code:has(.copy) { padding-top: 46px; }
+.code .p { color: var(--accent); user-select: none; }
+.copy {
+  position: absolute; top: 10px; right: 10px; cursor: pointer;
+  padding: 5px 10px; border-radius: 8px; font-size: 11px;
+  background: var(--surface-2); border: 1px solid var(--line-2); color: var(--text-2);
+}
+.copy:hover { color: var(--text); border-color: var(--muted); }
+:not(pre) > code { white-space: nowrap; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; font-size: .92em; }
+
+/* Sections */
+section { padding: 44px 0; }
+h2 { margin: 0 0 6px; font: 400 clamp(28px, 3.4vw, 44px)/1.1 var(--serif); letter-spacing: -.01em; }
+h2 em { font-style: italic; color: var(--accent); }
+.sub { margin: 0 0 24px; color: var(--muted); font-size: 14px; max-width: 72ch; }
+.video { width: 100%; aspect-ratio: 16 / 9; display: block; border-radius: var(--radius); border: 1px solid var(--line); background: #000; }
+
+/* The menu */
+.toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 0; margin-bottom: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { cursor: pointer; padding: 7px 13px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--line-2); background: none; color: var(--text-2); }
+.chip:hover { border-color: var(--muted); color: var(--text); }
+.chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+.chip span { color: inherit; opacity: .6; font-weight: 400; margin-left: 4px; }
+.search {
+  flex: 1 1 220px; min-width: 0; padding: 10px 14px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line-2); color: var(--text); font: inherit; font-size: 13px;
+}
+.search::placeholder { color: var(--muted); }
+.count { color: var(--muted); font-size: 12px; margin-left: auto; }
+.group { padding: 26px 0 10px; }
+.group-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; border-bottom: 1px dashed var(--line-2); padding-bottom: 10px; }
+.group-head h3 { margin: 0; font: italic 400 clamp(24px, 2.6vw, 32px)/1.1 var(--serif); }
+.group-head span { color: var(--muted); font-size: 12px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.card {
+  all: unset; cursor: pointer; display: flex; flex-direction: column; min-width: 0;
+  border-radius: var(--radius); overflow: hidden; background: var(--card-bg);
+  border: 1px solid var(--line); transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.card:hover, .card:focus-visible { border-color: var(--card-accent); box-shadow: 0 0 0 1px var(--card-accent), 0 16px 36px -16px var(--card-glow); transform: translateY(-2px); outline: none; }
+.frame { position: relative; display: block; aspect-ratio: 16 / 9; background: var(--card-bg); overflow: hidden; }
+.frame img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s; }
+.frame img.loaded { opacity: 1; }
+/* The desktop screenshot fades in over the drink on hover and focus. */
+.frame .desk.loaded { opacity: 0; }
+.card:hover .frame .desk.loaded, .card:focus-visible .frame .desk.loaded { opacity: 1; }
+.card .meta { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px 2px; min-width: 0; }
+.card .num { color: var(--card-dim); font-size: 11px; flex-shrink: 0; }
+.card .name { color: var(--card-fg); font: 500 19px/1.2 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .desc { color: var(--card-dim); font-size: 11.5px; padding: 0 14px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dots { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; align-self: center; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .45); }
+.strip { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; padding: 0 14px 14px; }
+.strip i { display: block; height: 8px; border-radius: 2px; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+
+/* Install */
+.install-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.install-grid h3 { margin: 0 0 10px; font-size: 14px; }
+
+/* Dialog */
+dialog {
+  width: min(1320px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0;
+  border-radius: 18px; border: 1px solid var(--d-accent, var(--line-2));
+  background: var(--d-bg, var(--surface)); color: var(--d-fg, var(--text));
+  box-shadow: 0 30px 90px -20px rgba(0, 0, 0, .6);
+}
+dialog::backdrop { background: rgba(10, 6, 3, .78); backdrop-filter: blur(4px); }
+.d-body { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(290px, 1fr); }
+.d-media { background: var(--d-darker, #000); display: flex; flex-direction: column; min-width: 0; }
+.d-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: var(--d-darker); }
+.vtabs, .tabs { display: flex; gap: 4px; padding: 10px; flex-wrap: wrap; background: var(--d-darker, #000); }
+.vtabs { padding-bottom: 0; }
+.tab, .vtab { cursor: pointer; padding: 7px 12px; border-radius: 999px; font-size: 12px; border: 1px solid transparent; background: none; color: var(--d-dim, var(--muted)); display: inline-flex; gap: 7px; align-items: center; }
+.tab[aria-selected="true"] { border-color: var(--d-accent); color: var(--d-fg); }
+.vtab { font-weight: 700; }
+.vtab i { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .5); }
+.vtab[aria-selected="true"] { background: var(--d-accent); color: var(--d-on-accent); }
+.d-info { padding: 22px; display: flex; flex-direction: column; gap: 18px; min-width: 0; overflow-y: auto; }
+.d-head { display: flex; align-items: flex-start; gap: 10px; }
+.d-head h3 { margin: 2px 0 0; font: 400 34px/1.05 var(--serif); }
+.d-head .num { color: var(--d-dim); font-size: 12px; }
+.d-desc { margin: 0; color: var(--d-dim); font-size: 13px; }
+.d-close { margin-left: auto; cursor: pointer; background: none; border: 1px solid var(--d-line, var(--line-2)); color: var(--d-fg); border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+.d-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }
+.d-meta dt { color: var(--d-dim); }
+.d-meta dd { margin: 0; }
+.swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.sw { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sw i { display: block; aspect-ratio: 1; border-radius: 7px; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .3); }
+.sw span { font-size: 9.5px; color: var(--d-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw:hover span, .sw:focus-visible span { color: var(--d-fg); }
+.label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--d-dim); margin-bottom: 8px; }
+dialog .code { background: var(--d-darker); border-color: var(--d-line); color: var(--d-fg); font-size: 12px; }
+dialog .code .p { color: var(--d-accent); }
+dialog .copy { background: var(--d-bg); border-color: var(--d-line); color: var(--d-fg); }
+.aether { display: flex; flex-wrap: wrap; gap: 8px; }
+.a-btn { cursor: pointer; padding: 9px 13px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--d-line); color: var(--d-fg); background: none; }
+.a-btn:hover { border-color: var(--d-accent); text-decoration: none; }
+.a-btn.primary { background: var(--d-accent); border-color: var(--d-accent); color: var(--d-on-accent); }
+.hint { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--d-dim); }
+.hint a { color: var(--d-link); }
+.files { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; }
+.files a { color: var(--d-link); }
+.d-nav { display: flex; gap: 8px; margin-top: auto; }
+.d-nav button { flex: 1; cursor: pointer; padding: 9px; border-radius: 999px; background: none; border: 1px solid var(--d-line); color: var(--d-fg); font-size: 12px; }
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  transition: opacity .15s, transform .15s; z-index: 20;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+footer { padding: 48px 0 64px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 40px; }
+footer p { margin: 0 0 6px; max-width: 80ch; }
+
+@media (max-width: 900px) {
+  .d-body { grid-template-columns: 1fr; }
+  .d-info { overflow: visible; }
+  dialog { overflow-y: auto; }
+  .toolbar { position: static; }
+}
+@media (max-width: 560px) {
+  .top nav { margin-left: 0; width: 100%; }
+  .count { margin-left: 0; width: 100%; }
+  .swatches { grid-template-columns: repeat(4, 1fr); }
+  .d-head h3 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  body, .card, .frame img, .toast { transition: none; }
+  .card:hover { transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#top" aria-label="Coffee themes for Omarchy, home"><i class="wordmark" aria-hidden="true"></i><span>/ coffee themes</span></a>
+    <nav aria-label="Sections">
+      <a href="#menu">Menu</a>
+      <a href="#video">Video</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/bjarneo/coffee-themes">GitHub</a>
+      <div class="mode" role="group" aria-label="Night or day">
+        <button data-mode="night" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z"/></svg>Night</button>
+        <button data-mode="day" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M2 12h2.2M19.8 12H22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>Day</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <div class="hero-text">
+        <div class="eyebrow">Omarchy · 82 themes · night and day</div>
+        <h1>A <em>coffee</em> menu for your desktop</h1>
+        <p class="lead">Every drink from espresso to Italian roast, as an Omarchy theme. Each theme has a night variant and a day variant. Each variant has 5 backgrounds at 6K: the Omarchy wordmark, latte art, the recipe, a crema swirl and roasted beans.</p>
+        <div class="stats"><span><b>82</b> drinks</span><span><b>2</b> variants each</span><span><b>164</b> Omarchy themes</span><span><b>820</b> backgrounds at 6K</span></div>
+        <div class="cta">
+          <a class="btn primary" href="#menu">Browse the menu</a>
+          <a class="btn" href="#install">Install</a>
+          <a class="btn" href="https://github.com/bjarneo/coffee-themes">View on GitHub</a>
+        </div>
+      </div>
+      <figure class="mosaic"><img src="assets/mosaic.jpg" alt="All 164 themes applied to the same desktop, from the darkest night to the lightest day." width="1920" height="1080"></figure>
+    </div>
+
+    <section id="video" aria-labelledby="video-title">
+      <h2 id="video-title">Every drink, <em>night and day</em></h2>
+      <p class="sub">All 82 drinks, one per beat. Each clip starts at night and pours into day. The music is a calm lo-fi track made with musicmaker.</p>
+      <video class="video" controls playsinline preload="metadata" poster="assets/mosaic.jpg" src="assets/promo.mp4"></video>
+    </section>
+
+    <section id="menu" aria-labelledby="menu-title">
+      <h2 id="menu-title">The <em>menu</em></h2>
+      <p class="sub">The switch at the top sets night or day for the whole menu. Select a drink to see both variants, all 5 backgrounds, the colors and the install command.</p>
+      <div class="toolbar">
+        <div class="chips" id="chips" role="group" aria-label="Category"></div>
+        <input class="search" id="q" type="search" placeholder="Search drinks" aria-label="Search drinks by name" autocomplete="off">
+        <span class="count" id="count" aria-live="polite"></span>
+      </div>
+      <div id="groups"></div>
+      <p class="empty" id="empty" hidden>No drink matches the search.</p>
+    </section>
+
+    <section id="install" aria-labelledby="install-title">
+      <h2 id="install-title">Install</h2>
+      <p class="sub"><code>install.sh</code> copies themes into <code>~/.config/omarchy/themes</code>. It installs the night and day variants of a theme unless you pick one with <code>--variant</code>. It never replaces a theme that you made.</p>
+      <div class="install-grid">
+        <div>
+          <h3>One drink, night and day, no clone</h3>
+<pre class="code"><button class="copy" data-copy="curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- cappuccino --set">Copy</button><span class="p">$ </span>curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh \
+    | bash -s -- cappuccino --set</pre>
+        </div>
+        <div>
+          <h3>One variant only</h3>
+<pre class="code"><button class="copy" data-copy="curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- cappuccino --variant day --set">Copy</button><span class="p">$ </span>curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh \
+    | bash -s -- cappuccino --variant day --set</pre>
+        </div>
+        <div>
+          <h3>All 164 themes</h3>
+<pre class="code"><button class="copy" data-copy="git clone --depth 1 https://github.com/bjarneo/coffee-themes ~/.local/share/coffee-themes
+~/.local/share/coffee-themes/install.sh --all
+omarchy theme set cappuccino-night">Copy</button><span class="p">$ </span>git clone --depth 1 https://github.com/bjarneo/coffee-themes ~/.local/share/coffee-themes
+<span class="p">$ </span>~/.local/share/coffee-themes/install.sh --all
+<span class="p">$ </span>omarchy theme set cappuccino-night</pre>
+        </div>
+        <div>
+          <h3>Apply with Aether</h3>
+          <p class="sub" style="margin:0">Select a drink and a variant, then select <b>Apply with Aether</b>. <a href="https://github.com/omacom/aether">Aether</a> downloads <code>colors.toml</code> and a 3840×2160 copy of the background, then applies them at once. <b>Install as Omarchy theme</b> adds the variant to the Omarchy theme menu.</p>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:18px">Variants: <code>night</code> and <code>day</code>. Theme names end in <code>-night</code> or <code>-day</code>, for example <code>mocha-night</code>. Other options: <code>--all</code>, <code>--list</code>, <code>--update</code>, <code>--remove</code>, <code>--link</code> and <code>--force</code>. Run <code>install.sh --help</code> for details.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Each palette starts from the drink: its background, its signature color and a second color for the window borders. The 6 main ANSI colors reach at least 5.5:1 against the background at night and 4.5:1 in the day, the WCAG AA level.</p>
+    <p>The scripts in <a href="https://github.com/bjarneo/coffee-themes/tree/main/tools">tools/</a> draw the backgrounds, the desktop screenshots and the video. Omarchy is at <a href="https://omarchy.org">omarchy.org</a>.</p>
+  </footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="d-name">
+  <div class="d-body">
+    <div class="d-media">
+      <div class="vtabs" id="d-vtabs" role="tablist" aria-label="Variant"></div>
+      <img id="d-img" alt="" width="1440" height="810">
+      <div class="tabs" id="d-tabs" role="tablist" aria-label="Image"></div>
+    </div>
+    <div class="d-info">
+      <div class="d-head">
+        <div><div class="num" id="d-num"></div><h3 id="d-name"></h3></div>
+        <button class="d-close" id="d-close" aria-label="Close">Esc</button>
+      </div>
+      <p class="d-desc" id="d-desc"></p>
+      <dl class="d-meta" id="d-meta"></dl>
+      <div>
+        <div class="label">ANSI colors · select to copy</div>
+        <div class="swatches" id="d-sw"></div>
+      </div>
+      <div>
+        <div class="label">Aether</div>
+        <div class="aether">
+          <a class="a-btn primary" id="a-apply">Apply with Aether</a>
+          <a class="a-btn" id="a-install">Install as Omarchy theme</a>
+          <a class="a-btn" id="a-edit">Open in editor</a>
+        </div>
+        <p class="hint" id="a-hint"></p>
+      </div>
+      <div>
+        <div class="label">Install</div>
+        <pre class="code" id="d-install"></pre>
+      </div>
+      <div class="files" id="d-files"></div>
+      <div class="d-nav"><button id="d-prev">← Previous</button><button id="d-next">Next →</button></div>
+    </div>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="assets/themes.js"></script>
+<script>
+const REPO = 'https://github.com/bjarneo/coffee-themes';
+const SITE = 'https://bjarneo.github.io/coffee-themes';
+const RAW = 'https://raw.githubusercontent.com/bjarneo/coffee-themes/main';
+const NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+// The 5 backgrounds of each variant, in the order that Omarchy shows them.
+const BACKGROUNDS = [
+  { key: 'wordmark', file: '0-omarchy-wordmark', label: 'Wordmark' },
+  { key: 'latte-art', file: '1-latte-art', label: 'Latte art' },
+  { key: 'recipe', file: '2-recipe', label: 'Recipe' },
+  { key: 'crema', file: '3-crema-swirl', label: 'Crema swirl' },
+  { key: 'beans', file: '4-coffee-beans', label: 'Beans' },
+];
+const RECIPE_LABEL = { drink: 'Recipe', roast: 'Roast curve', cherry: 'Coffee cherry' };
+const { variants: VARIANTS, categories: CATS, themes: T } = window.THEMES;
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let mode = document.documentElement.dataset.mode, cat = 'all', current = -1, view = 'shot', dvariant = mode;
+
+function toast(msg, ms = 1400) {
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), ms);
+}
+function copy(text, msg = 'Copied') {
+  navigator.clipboard?.writeText(text).then(() => toast(msg), () => toast('Copy failed'));
+}
+
+// Night and day: the page colors and the variant in the menu change together.
+function setMode(m, save = true) {
+  mode = m;
+  document.documentElement.dataset.mode = m;
+  if (save) { try { localStorage.setItem('mode', m); } catch {} }
+  document.querySelectorAll('.mode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  paintCards();
+}
+document.querySelector('.mode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
+
+// Category chips
+const SHORT = { all: 'All', espresso: 'Espresso', brewed: 'Brewed', iced: 'Iced', regional: 'Regional', flavored: 'Flavored', beans: 'Beans', roasts: 'Roasts' };
+$('chips').innerHTML = [{ key: 'all', label: 'All' }, ...CATS].map(c => {
+  const n = c.key === 'all' ? T.length : T.filter(t => t.cat === c.key).length;
+  return `<button class="chip" data-cat="${c.key}" aria-pressed="${c.key === 'all'}">${esc(SHORT[c.key])}<span>${n}</span></button>`;
+}).join('');
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  cat = b.dataset.cat;
+  $('chips').querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === b));
+  render();
+});
+$('q').addEventListener('input', render);
+
+// The menu: one group per category
+$('groups').innerHTML = CATS.map(c => {
+  const list = T.filter(t => t.cat === c.key);
+  return `<div class="group" data-cat="${c.key}">
+    <div class="group-head"><h3>${esc(c.label)}</h3><span>${list.length} drinks</span></div>
+    <div class="grid">${list.map(t => `<button class="card" data-i="${T.indexOf(t)}">
+      <span class="frame"><img class="drink" alt="" width="640" height="360" decoding="async"><img class="desk" alt="" width="640" height="360" decoding="async"></span>
+      <span class="meta"><span class="num">${pad(t.index)}</span><span class="name">${esc(t.name)}</span><span class="dots">${VARIANTS.map(v => `<i title="${esc(v.label)}" style="background:${t.variants[v.key].colors.background}"></i>`).join('')}</span></span>
+      <span class="desc">${esc(t.desc)}</span>
+      <span class="strip"></span>
+    </button>`).join('')}</div>
+  </div>`;
+}).join('');
+$('groups').addEventListener('click', e => { const b = e.target.closest('.card'); if (b) open(+b.dataset.i, mode); });
+for (const type of ['pointerover', 'focusin']) {
+  $('groups').addEventListener(type, e => {
+    const b = e.target.closest('.card'); if (!b || b.dataset.hovered) return;
+    b.dataset.hovered = '1';
+    const desk = b.querySelector('.desk'); desk.src = desk.dataset.src;
+  });
+}
+
+// A card gets its thumbnail when it comes within 300 px of the viewport.
+const thumbs = new IntersectionObserver(entries => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    e.target.dataset.seen = '1';
+    e.target.src = e.target.dataset.src;
+    thumbs.unobserve(e.target);
+  }
+}, { rootMargin: '300px 0px' });
+
+// A variant without a screenshot shows its latte art background instead.
+function fallback(img, src) { img.onerror = () => { img.onerror = null; img.src = src; }; }
+
+function paintCards() {
+  document.querySelectorAll('.card').forEach(el => {
+    const t = T[+el.dataset.i], v = t.variants[mode], c = v.colors;
+    Object.entries({ '--card-bg': c.background, '--card-fg': c.foreground, '--card-dim': c.dark_foreground, '--card-accent': c.accent, '--card-glow': c.accent + '88' })
+      .forEach(([k, val]) => el.style.setProperty(k, val));
+    const img = el.querySelector('.drink'), desk = el.querySelector('.desk');
+    fallback(img, `assets/bg/${t.slug}/${mode}/1-latte-art.webp`);
+    img.onload = () => img.classList.add('loaded');
+    img.dataset.src = `assets/thumbs/${t.slug}/${mode}.webp`;
+    if (img.dataset.seen) img.src = img.dataset.src;
+    else thumbs.observe(img);
+    img.alt = `${t.name} on a table`;
+    // The screenshot loads on the first hover or focus only.
+    desk.classList.remove('loaded');
+    desk.onload = () => desk.classList.add('loaded');
+    desk.dataset.src = `assets/thumbs/${t.slug}/${mode}-desktop.webp`;
+    desk.removeAttribute('src');
+    if (el.dataset.hovered) desk.src = desk.dataset.src;
+    el.querySelector('.strip').innerHTML = v.ansi.map(h => `<i style="background:${h}"></i>`).join('');
+  });
+}
+
+function render() {
+  const q = $('q').value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let shown = 0;
+  document.querySelectorAll('.group').forEach(g => {
+    let n = 0;
+    g.querySelectorAll('.card').forEach(el => {
+      const t = T[+el.dataset.i];
+      const hay = `${t.name} ${t.slug} ${t.desc} ${t.origin}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const ok = (cat === 'all' || t.cat === cat) && (!q || hay.includes(q));
+      el.hidden = !ok; if (ok) n++;
+    });
+    g.hidden = n === 0; shown += n;
+  });
+  $('count').textContent = `${shown} of ${T.length} drinks · ${shown * VARIANTS.length} themes`;
+  $('empty').hidden = shown > 0;
+}
+paintCards();
+render();
+setMode(mode, false);
+
+// Dialog
+function views(t) {
+  return [{ key: 'shot', label: 'Desktop' }, ...BACKGROUNDS.map(b => ({ key: b.key, label: b.key === 'recipe' ? RECIPE_LABEL[t.recipe] : b.label }))];
+}
+const bgFile = key => BACKGROUNDS.find(b => b.key === key).file;
+function imageFor(t) {
+  if (view === 'shot') return `assets/shots/${t.slug}/${dvariant}.webp`;
+  return `assets/bg/${t.slug}/${dvariant}/${bgFile(view)}.webp`;
+}
+// aether:// links, built like the links in 100-themes. Aether stops a
+// download after 60 seconds, so the links use the 3840x2160 copies in
+// assets/aether. silent=true applies without the Aether window.
+function aetherUrl(t, extra = {}) {
+  const file = bgFile(view === 'shot' ? 'latte-art' : view);
+  const q = new URLSearchParams({ colors: `${SITE}/${t.slug}/${dvariant}/colors.toml`, wallpaper: `${SITE}/assets/aether/${t.slug}/${dvariant}/${file}.jpg`, ...extra });
+  return `aether://apply?${q}`;
+}
+function updateAether(t) {
+  const v = t.variants[dvariant];
+  $('a-apply').href = aetherUrl(t, { silent: 'true' });
+  $('a-install').href = aetherUrl(t, { silent: 'true', as_omarchy_theme: v.install });
+  $('a-edit').href = aetherUrl(t, { edit: 'true' });
+  const label = views(t).find(x => x.key === (view === 'shot' ? 'latte-art' : view)).label.toLowerCase();
+  $('a-hint').innerHTML = `Uses the ${esc(label)} background. Needs <a href="https://github.com/omacom/aether">Aether</a>. Apply and Install change your theme at once. Install stops if a theme named <code>${esc(v.install)}</code> exists. Open in editor changes nothing until you select Apply.`;
+}
+function show(vw) {
+  view = vw;
+  const t = T[current], v = t.variants[dvariant];
+  updateAether(t);
+  fallback($('d-img'), `assets/bg/${t.slug}/${dvariant}/1-latte-art.webp`);
+  $('d-img').src = imageFor(t);
+  const label = views(t).find(x => x.key === vw).label;
+  $('d-img').alt = vw === 'shot' ? `${v.name} applied to a desktop` : `${v.name}, ${label.toLowerCase()} background`;
+  $('d-tabs').querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.view === vw));
+}
+function open(i, vkey = dvariant) {
+  current = (i + T.length) % T.length;
+  dvariant = vkey;
+  const t = T[current], v = t.variants[dvariant], c = v.colors, d = $('dlg');
+  const onAccent = c.mode === 'light' ? c.background : c.darker_background;
+  Object.entries({ '--d-bg': c.background, '--d-darker': c.dark_background, '--d-fg': c.foreground, '--d-dim': c.dark_foreground,
+    '--d-accent': c.accent, '--d-on-accent': onAccent, '--d-line': c.lighter_background, '--d-link': c.accent }).forEach(([k, val]) => d.style.setProperty(k, val));
+  $('d-vtabs').innerHTML = VARIANTS.map(x => `<button class="vtab" role="tab" data-variant="${x.key}" aria-selected="${x.key === dvariant}"><i style="background:${t.variants[x.key].colors.background}"></i>${esc(x.label)}</button>`).join('');
+  $('d-tabs').innerHTML = views(t).map(x => `<button class="tab" role="tab" data-view="${x.key}">${esc(x.label)}</button>`).join('');
+  const category = CATS.find(x => x.key === t.cat).label;
+  $('d-num').textContent = `${pad(t.index)} / ${T.length} · ${category}${t.origin ? ` · ${t.origin}` : ''}`;
+  $('d-name').textContent = v.name;
+  $('d-desc').textContent = t.desc;
+  $('d-meta').innerHTML = [['Theme name', v.install], ['Background', c.background], ['Foreground', c.foreground], ['Accent', c.accent], ['Second', v.second], ['Icons', v.icons]]
+    .map(([k, val]) => `<dt>${k}</dt><dd>${val.startsWith('#') ? `<span style="color:${val}">■</span> ${val}` : esc(val)}</dd>`).join('');
+  $('d-sw').innerHTML = v.ansi.map((h, k) => `<button class="sw" data-hex="${h}" title="${k > 7 ? 'bright ' : ''}${NAMES[k % 8]} ${h}"><i style="background:${h}"></i><span>${h.slice(1)}</span></button>`).join('');
+  const flag = ` --variant ${dvariant}`;
+  const cmd = `curl -fsSL ${SITE}/install.sh | bash -s -- ${t.slug}${flag} --set`;
+  $('d-install').innerHTML = `<button class="copy" data-copy="${esc(cmd)}">Copy</button><span class="p">$ </span>curl -fsSL \\\n    ${SITE}/install.sh \\\n    | bash -s -- ${t.slug}${flag} --set`;
+  $('d-files').innerHTML = [
+    ['colors.toml', `${t.slug}/${dvariant}/colors.toml`], ['preview.png', `${RAW}/${t.slug}/${dvariant}/preview.png`],
+    ...BACKGROUNDS.map(b => [`6K ${views(t).find(x => x.key === b.key).label.toLowerCase()}`, `${RAW}/${t.slug}/${dvariant}/backgrounds/${b.file}.jpg`]),
+    ['Folder on GitHub', `${REPO}/tree/main/${t.slug}/${dvariant}`],
+  ].map(([n, h]) => `<a href="${h}">${esc(n)}</a>`).join('');
+  show(views(t).some(x => x.key === view) ? view : 'shot');
+  if (!d.open) d.showModal();
+  history.replaceState(null, '', `#${t.slug}/${dvariant}`);
+}
+function close() { $('dlg').close(); }
+$('dlg').addEventListener('close', () => history.replaceState(null, '', location.pathname + location.search));
+$('dlg').addEventListener('click', e => { if (e.target === $('dlg')) close(); });
+$('d-close').addEventListener('click', close);
+$('d-prev').addEventListener('click', () => open(current - 1));
+$('d-next').addEventListener('click', () => open(current + 1));
+$('d-vtabs').addEventListener('click', e => { const b = e.target.closest('.vtab'); if (b) open(current, b.dataset.variant); });
+$('d-tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) show(b.dataset.view); });
+$('d-sw').addEventListener('click', e => { const b = e.target.closest('.sw'); if (b) copy(b.dataset.hex, `Copied ${b.dataset.hex}`); });
+// The browser cannot tell if Aether accepted the link, so confirm the click only.
+document.querySelector('.aether').addEventListener('click', e => {
+  const a = e.target.closest('.a-btn'); if (!a) return;
+  toast(a.id === 'a-edit' ? 'Opening Aether' : 'Sent to Aether. The download takes a few seconds.', 3000);
+});
+document.addEventListener('click', e => { const b = e.target.closest('.copy'); if (b) copy(b.dataset.copy); });
+document.addEventListener('keydown', e => {
+  if (!$('dlg').open) return;
+  if (e.key === 'ArrowRight') open(current + 1);
+  if (e.key === 'ArrowLeft') open(current - 1);
+});
+
+// Deep links: #mocha opens the variant of the page, #mocha/day opens day.
+const [hashSlug, hashVariant] = decodeURIComponent(location.hash.slice(1)).split('/');
+const fromHash = T.findIndex(t => t.slug === hashSlug);
+if (fromHash >= 0) open(fromHash, VARIANTS.some(v => v.key === hashVariant) ? hashVariant : mode);
+</script>
+</body>
+</html>
