@@ -20,6 +20,9 @@
 //   recipe     a cross-section of the drink, a roast curve or a coffee cherry
 //   crema      cream that swirls into coffee
 //   beans      roasted coffee beans
+//
+// tools/steam.mjs also uses 'cup-wordmark': a large cup with the Omarchy
+// wordmark as latte art, the still under the steam video.
 
 const W = 3840, H = 2160;
 const MONO = '"JetBrainsMono Nerd Font", "JetBrains Mono", monospace';
@@ -494,6 +497,7 @@ function table(ctx, P, r, noise) {
 
 // Top view sizes: liquid radius, rim width, saucer radius, handle, material.
 const CUPS = {
+  hero: { R: 540, rim: 66, saucer: 780, handle: 1, material: 'ceramic' },
   demitasse: { R: 290, rim: 58, saucer: 600, handle: 1, material: 'ceramic' },
   cup: { R: 420, rim: 66, saucer: 800, handle: 1, material: 'ceramic' },
   mug: { R: 450, rim: 80, saucer: 0, handle: 1.2, material: 'ceramic' },
@@ -690,6 +694,23 @@ function whipped(c, P, R, cream, r, scale = 1) {
 }
 
 const ART = {};
+
+// The Omarchy wordmark as latte art, with a small heart below it. The
+// animated background in tools/steam.mjs shows it.
+ART.wordmark = (c, P, R, r) => {
+  cremaSurface(c, P, R, r);
+  const milk = ing(P, 'steamed milk');
+  const s = R * 1.5 / 1215, lw = 1215 * s, lh = 285 * s;
+  const logo = (color, radius) => {
+    c.save(); c.filter = blur(radius); c.fillStyle = color;
+    c.translate(-lw / 2, -lh / 2 - R * .06); c.scale(s, s);
+    LOGO.forEach(p => c.fill(p.path, p.rule));
+    c.restore();
+  };
+  logo(rgba(mix(milk, '#6a3a18', .5), .4), 10);
+  logo(milk, 2.5);
+  milkShape(c, P, x => heartPath(x, R * .36, R * .1), milk);
+};
 
 ART.crema = (c, P, R, r) => {
   // Espresso crema: golden foam, a dark ring at the edge and dark flecks that
@@ -1009,7 +1030,8 @@ function cup(ctx, P, x, y, r, noise) {
 
   // The drink
   ctx.save(); circle(ctx, x, y, R); ctx.clip();
-  ctx.translate(x, y); ctx.rotate((r() - .5) * .35);
+  // The wordmark stays level. Other art turns a little, like a real pour.
+  ctx.translate(x, y); ctx.rotate(CURRENT.art === 'wordmark' ? 0 : (r() - .5) * .35);
   (ART[CURRENT.art] || ART.black)(ctx, P, R, r);
   ctx.restore();
 
@@ -1033,6 +1055,28 @@ function cup(ctx, P, x, y, r, noise) {
   if (isGlass) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; circle(ctx, x, y, R + rim); ctx.stroke(); }
   ctx.restore();
   return { R: R + rim, saucer: spec.saucer, handleAngle };
+}
+
+// A large cup in the middle of the table with the wordmark as latte art.
+// tools/steam.mjs renders this still and adds the steam on top.
+function cupWordmark(ctx, P, r, noise) {
+  table(ctx, P, r, noise);
+  const x = W / 2, y = H / 2 + 20;
+  const base = mix(roastColor(P.roast), P.accent, .1);
+  for (let i = 0; i < 9; i++) {
+    const a = r() * Math.PI * 2, d = 1150 + r() * 500;
+    const bx = x + Math.cos(a) * d * 1.4, by = y + Math.sin(a) * d * .65;
+    if (bx < 120 || bx > W - 120 || by < 120 || by > H - 120) continue;
+    bean(ctx, P, bx, by, 110 + r() * 20, r() * 6.3, base, r() < .6, P.light ? .3 : .55, P.roast > .66);
+  }
+  const saved = { vessel: CURRENT.vessel, art: CURRENT.art };
+  CURRENT.vessel = 'hero'; CURRENT.art = 'wordmark';
+  const res = cup(ctx, P, x, y, r, noise);
+  Object.assign(CURRENT, saved);
+  // The saucer rim is too narrow for a spoon, so it lies on the table.
+  spoon(ctx, P, x + res.saucer + 230, y + 300, -1.95, 560);
+  vignette(ctx, P, P.light ? .16 : .45);
+  grain(ctx, P.index * 59, .05);
 }
 
 function latteArt(ctx, P, r, noise) {
@@ -1370,7 +1414,7 @@ function recipe(ctx, P, r, noise) {
 
 // ---------- entry point ----------
 
-const KINDS = { wordmark, 'latte-art': latteArt, recipe, crema, beans };
+const KINDS = { wordmark, 'latte-art': latteArt, recipe, crema, beans, 'cup-wordmark': cupWordmark };
 
 window.renderImage = async (theme, kind, width, height, mime = 'image/png', quality = .92) => {
   await document.fonts.load(`40px ${MONO}`);

@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Steam renderer</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Steam frames for the animated background. tools/steam.mjs calls
+// renderSteam() once for each frame of the loop. A frame is white, and its
+// alpha holds the steam, so the same frames serve every theme. The script
+// colors them for each theme.
+//
+// The loop is seamless: each frame mixes the field at time t with the field
+// at time t - T, and the weight of the second field grows from 0 to 1 over
+// the loop. At the end of the loop the mix equals the first frame again.
+
+const W = 3840, H = 2160;
+
+function rng(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+
+function makeNoise(seed) {
+  const r = rng(seed), perm = new Uint8Array(512), grad = [];
+  const p = [...Array(256).keys()];
+  for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+  for (let i = 0; i < 256; i++) { const a = r() * Math.PI * 2; grad.push([Math.cos(a), Math.sin(a)]); }
+  const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+  function n(x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y), sx = fade(x - x0), sy = fade(y - y0);
+    const X = x0 & 255, Y = y0 & 255, fx = x - x0, fy = y - y0;
+    const d = (dx, dy) => { const g = grad[perm[((X + dx) & 255) + perm[(Y + dy) & 255]]]; return g[0] * (fx - dx) + g[1] * (fy - dy); };
+    return lerp(lerp(d(0, 0), d(1, 0), sx), lerp(d(0, 1), d(1, 1), sx), sy);
+  }
+  n.fbm = (x, y, oct = 4) => { let s = 0, a = .5, f = 1; for (let i = 0; i < oct; i++) { s += a * n(x * f, y * f); a *= .5; f *= 2; } return s; };
+  return n;
+}
+
+const warp = makeNoise(17), body = makeNoise(29), haze = makeNoise(41);
+
+// Steam density at a point in design pixels at time t in seconds. The pattern
+// rises: a point samples the field further down as time goes on. Ridged noise
+// makes thin wisps, and a low haze fills between them.
+function field(x, y, t) {
+  const f = .00105, px = x * f + t * .01, py = y * f + t * .055;
+  const qx = warp.fbm(px * .8 + t * .02, py * .8, 3), qy = warp.fbm(px * .8 + 5.2, py * .8 - t * .02, 3);
+  const v = body.fbm(px + 1.9 * qx, py + 1.9 * qy, 4);
+  const wisp = Math.pow(clamp(1 - Math.abs(v) * 2.4, 0, 1), 5);
+  const fog = smooth((haze.fbm(px * .6 + qx * .5, py * .6, 3) + .1) * 2.2);
+  return wisp * .7 + fog * .12;
+}
+
+// The steam stays over the cup and fades out above it. cx, cy and R are the
+// cup center and radius in design pixels.
+function mask(x, y, cx, cy, R) {
+  const dx = (x - cx) / (R * 1.25), dy = (y - cy + R * .25) / (R * 1.45);
+  return smooth(1.1 - Math.hypot(dx, dy));
+}
+
+window.renderSteam = (frame, frames, seconds, width, height, cup) => {
+  const cv = document.getElementById('c');
+  cv.width = width; cv.height = height;
+  const ctx = cv.getContext('2d'), img = ctx.createImageData(width, height), d = img.data;
+  const t = frame / frames * seconds, w = frame / frames;
+  for (let j = 0, i = 0; j < height; j++) {
+    const y = (j + .5) * H / height;
+    for (let k = 0; k < width; k++, i += 4) {
+      const x = (k + .5) * W / width;
+      const m = mask(x, y, cup.x, cup.y, cup.R);
+      let a = 0;
+      if (m > .002) a = ((1 - w) * field(x, y, t) + w * field(x, y, t - seconds)) * m;
+      d[i] = d[i + 1] = d[i + 2] = 255;
+      d[i + 3] = clamp(a, 0, 1) * 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv.toDataURL('image/png');
+};
+</script>
+</body>
+</html>
