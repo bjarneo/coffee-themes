@@ -33,7 +33,8 @@ window.setup = async (config) => {
   S = config;
   LOGO = config.logo.map(p => ({ path: new Path2D(p.d), rule: p.evenodd ? 'evenodd' : 'nonzero' }));
   stills.wall = await load(config.wall);
-  stills.backgrounds = await Promise.all(config.backgrounds.map(b => load(b.src)));
+  // A video background arrives as a list of frames.
+  stills.backgrounds = await Promise.all(config.backgrounds.map(b => b.frames ? Promise.all(b.frames.map(load)) : load(b.src)));
   stills.hero = await Promise.all(config.hero.map(load));
   await document.fonts.load(`40px ${MONO}`);
   await document.fonts.load(`bold 40px ${MONO}`);
@@ -127,7 +128,8 @@ function intro(f, n) {
 
 // The 5 backgrounds of one variant, one per beat.
 function backgrounds(seg, f, n) {
-  const b = S.backgrounds[seg.i], img = stills.backgrounds[seg.i], t = S.intro;
+  const b = S.backgrounds[seg.i], item = stills.backgrounds[seg.i], t = S.intro;
+  const img = Array.isArray(item) ? item[Math.min(f, item.length - 1)] : item;
   cover(img);
   const a = ease(f / 6);
   ctx.save(); ctx.globalAlpha = a;
@@ -135,8 +137,10 @@ function backgrounds(seg, f, n) {
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.7)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   ctx.restore();
-  text(`5 backgrounds per variant  ·  ${seg.i + 1} / 5`, 96, H - 150, 26, '#f3e9dd', { alpha: a, spacing: '3px' });
-  text(b.label, 92, H - 70, 76, '#ffffff', { font: SERIF, weight: '300', alpha: a, glow: 'rgba(0,0,0,.6)', blur: 30 });
+  const n7 = S.backgrounds.length;
+  text(`${n7} backgrounds per variant  ·  ${seg.i + 1} / ${n7}`, 96, H - 150, 26, '#f3e9dd', { alpha: a, spacing: '3px' });
+  const w = text(b.label, 92, H - 70, 76, '#ffffff', { font: SERIF, weight: '300', alpha: a, glow: 'rgba(0,0,0,.6)', blur: 30 });
+  if (b.frames) text('animated', 92 + w + 28, H - 78, 26, t.colors.accent, { bold: true, alpha: a, spacing: '3px' });
   chip(t, a);
 }
 

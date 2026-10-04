@@ -92,12 +92,12 @@ const readme = `# Coffee themes for Omarchy
 
 [![All 164 themes, from the darkest night to the lightest day.](site/assets/mosaic.jpg)](${SITE})
 
-This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso to Italian roast. Each theme has a night variant and a day variant. That makes 164 Omarchy themes. Each variant has a 16-color ANSI palette and 5 backgrounds at 6K.
+This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso to Italian roast. Each theme has a night variant and a day variant. That makes 164 Omarchy themes. Each variant has a 16-color ANSI palette, 5 backgrounds at 6K and 2 animated backgrounds.
 
 - Site: [${SITE.replace('https://', '')}](${SITE})
 - Promo video: [\`site/assets/promo.mp4\`](site/assets/promo.mp4), all 82 drinks, one per beat
 - Screenshots: real captures of an Omarchy desktop with each variant applied
-- Backgrounds: 820 at 6K, 6144×3456
+- Backgrounds: 820 images at 6K, 6144×3456, and 328 videos at 3840×2160
 
 ## Variants
 
@@ -117,7 +117,7 @@ Signature palettes: ${signatures}.
 
 ## Backgrounds
 
-Each variant has 5 backgrounds. Omarchy shows them in this order. To show the next one, run \`omarchy theme bg next\`.
+Each variant has 7 backgrounds: 5 images and 2 videos. Omarchy shows them in this order. To show the next one, run \`omarchy theme bg next\`.
 
 | File | What it shows |
 | --- | --- |
@@ -126,6 +126,8 @@ Each variant has 5 backgrounds. Omarchy shows them in this order. To show the ne
 | \`2-recipe.jpg\` | A cross-section of the drink with the share of each part. Roast levels show the roast curve. Coffee beans show a coffee cherry. |
 | \`3-crema-swirl.jpg\` | Cream that swirls into coffee, with a thin ribbon of the accent color. |
 | \`4-coffee-beans.jpg\` | Roasted beans in the roast color of the theme. |
+| \`5-steam.mp4\` | A 12 second loop at 3840×2160. The Omarchy wordmark is latte art in a cappuccino, and steam drifts over the cup. |
+| \`6-pour.mp4\` | A 37 second loop at 3840×2160. It shows the 5 images in turn, and each one pours into the next behind a creamy milk front, like the transition of the promo video. |
 
 ## Install
 
@@ -225,6 +227,8 @@ The scripts in [\`tools/\`](tools/) make every file in this repo. They need Node
 | \`tools/palettes.mjs\` | The drink table and the color math. Every other script reads it. |
 | \`tools/build.mjs\` | \`colors.toml\` and \`icons.theme\` of each variant, and \`site/assets/themes.js\` |
 | \`tools/render.mjs\` | The 5 backgrounds of each variant at 6K. \`tools/render.html\` draws them on a canvas. |
+| \`tools/steam.mjs\` | The steam video of each variant. \`tools/steam.html\` draws the steam once, \`tools/render.html\` draws the cup, and ffmpeg lays the steam over the cup. |
+| \`tools/pour.mjs\` | The pour video of each variant. \`tools/pour.html\` draws the pour once, and ffmpeg pours each image into the next. |
 | \`tools/capture.sh\` | \`preview.png\` of each variant and the site screenshots. It applies each variant on this desktop and takes a screenshot of workspace 8. |
 | \`tools/assets.mjs\` | The site previews, the thumbnails, the Aether copies and the mosaic |
 | \`tools/promo.mjs\` | \`site/assets/promo.mp4\`. \`tools/promo.html\` draws the frames. |
@@ -235,6 +239,8 @@ To build everything again, run the scripts in this order:
 \`\`\`bash
 node tools/build.mjs
 node tools/render.mjs
+node tools/steam.mjs
+node tools/pour.mjs
 tools/capture.sh
 node tools/assets.mjs
 node tools/promo.mjs song.mp3

@@ -1,7 +1,8 @@
 // Writes the derived files that the site, the README and the Aether links use:
 //
 //   site/assets/aether/<theme>/<variant>/*.jpg   3840x2160 copies for Aether links
-//   site/assets/bg/<theme>/<variant>/*.webp      1440x810 previews for the site
+//   site/assets/bg/<theme>/<variant>/*.webp      1440x810 previews for the site, and the
+//                                                first frame of each video as its poster
 //   site/assets/thumbs/<theme>/<variant>.webp    640x360 latte art crops for the menu cards
 //   site/assets/thumbs/<theme>/<variant>-desktop.webp  640x360 screenshot crops for card hovers
 //   site/assets/shots/<theme>/pair.webp          night and day screenshots side by side
@@ -44,6 +45,10 @@ for (const t of themes) {
       const thumb = join(SITE, 'bg', t.slug, key, f.replace(/\.jpg$/, '.webp'));
       if (!fresh(aether, [join(src, f)])) jobs.push(['magick', [join(src, f), '-resize', '3840x2160', '-sampling-factor', '4:2:0', '-quality', '82', '-interlace', 'Plane', '-strip', aether]]);
       if (!fresh(thumb, [join(src, f)])) jobs.push(['magick', [join(src, f), '-resize', '1440x810', '-quality', '80', '-strip', thumb]]);
+    }
+    for (const f of readdirSync(src).filter(f => f.endsWith('.mp4'))) {
+      const poster = join(SITE, 'bg', t.slug, key, f.replace(/\.mp4$/, '.webp'));
+      if (!fresh(poster, [join(src, f)])) jobs.push(['ffmpeg', ['-v', 'error', '-y', '-i', join(src, f), '-frames:v', '1', '-vf', 'scale=1440:810', '-c:v', 'libwebp', '-quality', '80', poster]]);
     }
   }
 }

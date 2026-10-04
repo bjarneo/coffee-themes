@@ -1,4 +1,4 @@
-// Renders site/assets/promo.mp4: the 5 backgrounds, night and day, then
+// Renders site/assets/promo.mp4: the 7 backgrounds, night and day, then
 // every drink, one per beat. Each beat starts at night and pours into day.
 // The clips are the real screenshots from tools/capture.sh.
 //
@@ -12,9 +12,10 @@
 // Run tools/render.mjs, tools/capture.sh and tools/assets.mjs first.
 // Needs `chromium` and `ffmpeg`.
 
-import { spawn } from 'node:child_process';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { readFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { themes, CATEGORIES } from './palettes.mjs';
 import { launch, logoPaths } from './cdp.mjs';
@@ -35,10 +36,22 @@ const frameAt = beat => Math.round((FIRST_BEAT + beat * BEAT) * FPS);
 const hero = themes.find(t => t.slug === 'cappuccino');
 const pick = (t, key) => ({ colors: t.variants[key].colors, ansi: t.variants[key].ansi, second: t.variants[key].second });
 
+// The 7 backgrounds of the hero variant: 5 images, then 2 videos. A video beat
+// plays 1 beat of the video from the given second: the steam from the start,
+// and the first pour from its middle.
 const BACKGROUNDS = [
   ['0-omarchy-wordmark', 'Wordmark'], ['1-latte-art', 'Latte art'], ['2-recipe', 'Recipe'],
   ['3-crema-swirl', 'Crema swirl'], ['4-coffee-beans', 'Coffee beans'],
+  ['5-steam', 'Steam', 0], ['6-pour', 'Pour', 6.25],
 ];
+const scratch = mkdtempSync(join(tmpdir(), 'theme-promo-'));
+function videoFrames(name, start) {
+  const dir = join(scratch, name);
+  mkdirSync(dir, { recursive: true });
+  execFileSync('ffmpeg', ['-v', 'error', '-ss', String(start), '-i', join(ROOT, hero.slug, 'night', 'backgrounds', `${name}.mp4`),
+    '-t', (BEAT + .1).toFixed(3), '-vf', `fps=${FPS},scale=1920:1080`, '-q:v', '3', join(dir, '%02d.jpg')]);
+  return readdirSync(dir).sort().map(f => pathToFileURL(join(dir, f)).href);
+}
 
 const clips = themes.map(t => ({
   name: t.name, index: t.index, category: CATEGORIES[t.cat],
@@ -46,7 +59,7 @@ const clips = themes.map(t => ({
   night: pick(t, 'night'), day: pick(t, 'day'),
 }));
 
-// Intro 4 beats, 5 backgrounds, night and day 2 beats, then a card before
+// Intro 4 beats, 7 backgrounds, night and day 2 beats, then a card before
 // each category and one beat for each drink, then the outro.
 const segments = [{ kind: 'intro', from: 0, to: frameAt(4) }];
 let beat = 4;
@@ -74,7 +87,9 @@ await page.evaluate(`setup(${JSON.stringify({
   intro: pick(hero, 'night'),
   introDay: pick(hero, 'day'),
   hero: [file(hero.slug, 'night', 'backgrounds', '1-latte-art.jpg'), file('.capture', hero.slug, 'night.png'), file('.capture', hero.slug, 'day.png')],
-  backgrounds: BACKGROUNDS.map(([f, label]) => ({ label, src: file('site', 'assets', 'aether', hero.slug, 'night', `${f}.jpg`) })),
+  backgrounds: BACKGROUNDS.map(([f, label, start]) => start === undefined
+    ? { label, src: file('site', 'assets', 'aether', hero.slug, 'night', `${f}.jpg`) }
+    : { label, frames: videoFrames(f, start) }),
   clips,
 })})`);
 
@@ -105,3 +120,4 @@ await new Promise(r => ffmpeg.on('close', r));
 process.stdout.write(`\nwrote ${OUT} (${seconds.toFixed(1)}s)\n`);
 page.close();
 await browser.close();
+rmSync(scratch, { recursive: true, force: true });
