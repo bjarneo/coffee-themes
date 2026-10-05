@@ -5,11 +5,15 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-export async function launch() {
+// gpu: true renders WebGL on the GPU through Vulkan. Without it, headless
+// Chromium renders WebGL on the CPU with SwiftShader.
+export async function launch({ gpu = false } = {}) {
   const profile = mkdtempSync(join(tmpdir(), 'theme-cdp-'));
   const chrome = spawn('chromium', [
     '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-    '--no-first-run', '--hide-scrollbars', '--allow-file-access-from-files', 'about:blank',
+    '--no-first-run', '--hide-scrollbars', '--allow-file-access-from-files',
+    ...(gpu ? ['--use-angle=vulkan', '--enable-features=Vulkan', '--ignore-gpu-blocklist'] : []),
+    'about:blank',
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
   const wsUrl = await new Promise((resolve, reject) => {
@@ -22,6 +26,10 @@ export async function launch() {
     chrome.on('exit', code => reject(new Error(`chromium exited with ${code}`)));
   });
   const port = new URL(wsUrl).port;
+  // Stop Chromium when the script stops, so no browser stays behind.
+  const stop = () => { try { chrome.kill(); } catch {} };
+  process.once('exit', stop);
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { stop(); process.exit(130); });
 
   async function open(url) {
     const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();

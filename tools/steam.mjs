@@ -10,25 +10,28 @@
 //   REDRAW_STEAM=1 node tools/steam.mjs      draw the steam frames again
 //
 // The steam does not depend on the theme, so the script draws its frames once
-// into .capture/steam/ and reuses them. For each variant, tools/render.html
-// draws one still of the cup, and ffmpeg lays the steam over it in a color of
-// the theme. Needs `chromium` and `ffmpeg`.
+// into .capture/steam/ and reuses them. For each variant, tools/photo.html
+// renders a photographic still of the cup from straight above, and ffmpeg
+// lays the steam over it in a color of the theme. Needs `chromium` with a GPU
+// that Vulkan can use, and `ffmpeg`.
 
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { themes, VARIANTS, mix } from './palettes.mjs';
-import { launch, logoPaths } from './cdp.mjs';
+import { launch } from './cdp.mjs';
 import { renderTheme } from './render.mjs';
+import { openPhotoPages } from './photo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FPS = 24, SECONDS = 12, FRAMES = FPS * SECONDS;
 // Size of the steam frames. ffmpeg scales them up, and the steam is soft.
 const STEAM_SIZE = [960, 540];
-// The cup in the still, in design pixels: tools/render.html draws the hero cup
-// at the middle of the frame, 20 px low, with a liquid radius of 540 x 1.3.
+// The cup in the still, in design pixels: the top scene of tools/photo.html
+// puts the drink at the middle of the frame, 20 px low, with a radius of 702 px.
 const CUP = { x: 1920, y: 1100, R: 702 };
 const STEAM_DIR = join(ROOT, '.capture', 'steam');
 const OUT = process.env.OUT;
@@ -53,7 +56,6 @@ for (const t of wanted.length ? themes.filter(x => wanted.includes(x.slug)) : th
   }
 }
 
-const browser = await launch();
 const started = Date.now();
 
 // 1. The steam frames, once
@@ -61,6 +63,7 @@ const haveSteam = existsSync(STEAM_DIR) && readdirSync(STEAM_DIR).filter(f => f.
 if (!haveSteam || process.env.REDRAW_STEAM) {
   rmSync(STEAM_DIR, { recursive: true, force: true });
   mkdirSync(STEAM_DIR, { recursive: true });
+  const browser = await launch();
   const page = await browser.open(pathToFileURL(join(ROOT, 'tools/steam.html')).href);
   for (let f = 0; f < FRAMES; f++) {
     const url = await page.evaluate(`renderSteam(${f}, ${FRAMES}, ${SECONDS}, ${STEAM_SIZE[0]}, ${STEAM_SIZE[1]}, ${JSON.stringify(CUP)})`);
@@ -68,23 +71,17 @@ if (!haveSteam || process.env.REDRAW_STEAM) {
     process.stdout.write(`\r${f + 1}/${FRAMES} steam frames, ${((Date.now() - started) / 1000).toFixed(0)}s   `);
   }
   process.stdout.write('\n');
-  page.close();
+  await browser.close();
 }
 
-// 2. One still and one video for each variant
-const scratch = mkdtempSync(join(tmpdir(), 'theme-steam-'));
-const page = await browser.open(pathToFileURL(join(ROOT, 'tools/render.html')).href);
-await page.evaluate(`setLogo(${JSON.stringify(logoPaths(readFileSync('/usr/share/omarchy/logo.svg', 'utf8')))})`);
-let done = 0;
-for (const { t, key, out } of jobs) {
-  const v = t.variants[key];
-  const url = await page.evaluate(`renderImage(${JSON.stringify(renderTheme(t, v))}, 'cup-wordmark', 3840, 2160, 'image/jpeg', .95)`);
-  const still = join(scratch, 'still.jpg');
-  writeFileSync(still, Buffer.from(url.split(',')[1], 'base64'));
+// 2. One still and one video for each variant. The GPU renders the next
+// still while ffmpeg encodes the video of the last one.
+const run = promisify(execFile);
+function encode(still, v, out) {
   const { color, opacity } = steamColor(v);
   const [r, g, b] = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
   mkdirSync(dirname(out), { recursive: true });
-  execFileSync('ffmpeg', [
+  return run('ffmpeg', [
     '-v', 'error', '-y',
     '-loop', '1', '-framerate', String(FPS), '-i', still,
     '-framerate', String(FPS), '-i', join(STEAM_DIR, '%03d.png'),
@@ -92,10 +89,24 @@ for (const { t, key, out } of jobs) {
     '-map', '[v]', '-frames:v', String(FRAMES), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
     '-g', String(FPS * 2), '-an', '-movflags', '+faststart', out,
   ]);
-  done++;
-  process.stdout.write(`\r${done}/${jobs.length} videos, ${((Date.now() - started) / 1000).toFixed(0)}s   `);
 }
+const scratch = mkdtempSync(join(tmpdir(), 'theme-steam-'));
+const pages = await openPhotoPages();
+let done = 0, encoding = Promise.resolve();
+for (const [i, { t, key, out }] of jobs.entries()) {
+  const v = t.variants[key];
+  // Two still files take turns, so the next still never replaces the still
+  // that ffmpeg reads.
+  const still = join(scratch, `still-${i % 2}.jpg`);
+  // The view from above has no depth of field, so 12 samples smooth the edges.
+  writeFileSync(still, await pages.shoot('top', renderTheme(t, v), 3840, 2160, 12));
+  await encoding;
+  encoding = encode(still, v, out).then(() => {
+    done++;
+    process.stdout.write(`\r${done}/${jobs.length} videos, ${((Date.now() - started) / 1000).toFixed(0)}s   `);
+  });
+}
+await encoding;
 process.stdout.write('\n');
-page.close();
-await browser.close();
+await pages.close();
 rmSync(scratch, { recursive: true, force: true });

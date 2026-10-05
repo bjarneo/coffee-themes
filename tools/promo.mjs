@@ -1,4 +1,4 @@
-// Renders site/assets/promo.mp4: the 7 backgrounds, night and day, then
+// Renders site/assets/promo.mp4: the 6 backgrounds, night and day, then
 // every drink, one per beat. Each beat starts at night and pours into day.
 // The clips are the real screenshots from tools/capture.sh.
 //
@@ -9,8 +9,8 @@
 //   FIRST_BEAT time of the first beat in seconds (default 0.813)
 //   URL        text on the outro card
 //
-// Run tools/render.mjs, tools/capture.sh and tools/assets.mjs first.
-// Needs `chromium` and `ffmpeg`.
+// Run tools/render.mjs, tools/photo.mjs, tools/steam.mjs, tools/capture.sh
+// and tools/assets.mjs first. Needs `chromium` and `ffmpeg`.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { readFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
@@ -36,13 +36,12 @@ const frameAt = beat => Math.round((FIRST_BEAT + beat * BEAT) * FPS);
 const hero = themes.find(t => t.slug === 'cappuccino');
 const pick = (t, key) => ({ colors: t.variants[key].colors, ansi: t.variants[key].ansi, second: t.variants[key].second });
 
-// The 7 backgrounds of the hero variant: 5 images, then 2 videos. A video beat
-// plays 1 beat of the video from the given second: the steam from the start,
-// and the first pour from its middle.
+// The 6 backgrounds of the hero variant: 5 images, then the steam video. The
+// video beat plays 1 beat of the video from the given second.
 const BACKGROUNDS = [
-  ['0-omarchy-wordmark', 'Wordmark'], ['1-latte-art', 'Latte art'], ['2-recipe', 'Recipe'],
+  ['0-omarchy-wordmark', 'Wordmark'], ['1-latte-art', 'Drink'], ['2-recipe', 'Recipe'],
   ['3-crema-swirl', 'Crema swirl'], ['4-coffee-beans', 'Coffee beans'],
-  ['5-steam', 'Steam', 0], ['6-pour', 'Pour', 6.25],
+  ['5-steam', 'Steam', 0],
 ];
 const scratch = mkdtempSync(join(tmpdir(), 'theme-promo-'));
 function videoFrames(name, start) {
@@ -59,7 +58,7 @@ const clips = themes.map(t => ({
   night: pick(t, 'night'), day: pick(t, 'day'),
 }));
 
-// Intro 4 beats, 7 backgrounds, night and day 2 beats, then a card before
+// Intro 4 beats, 6 backgrounds, night and day 2 beats, then a card before
 // each category and one beat for each drink, then the outro.
 const segments = [{ kind: 'intro', from: 0, to: frameAt(4) }];
 let beat = 4;

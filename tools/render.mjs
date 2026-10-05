@@ -1,10 +1,9 @@
-// Renders the 5 backgrounds of each theme variant with headless Chromium.
-// tools/render.html draws them.
+// Renders the recipe background of each theme variant with headless
+// Chromium. tools/render.html draws it.
 //
 //   node tools/render.mjs                         render all themes and variants
 //   node tools/render.mjs mocha latte             render the named themes
 //   VARIANTS=day node tools/render.mjs            render only these variants
-//   KINDS=latte-art,beans node tools/render.mjs   render only these kinds
 //   PREVIEW=1 OUT=/tmp/x node tools/render.mjs mocha
 //                                                 write small JPEGs to $OUT
 //   SIZE=3840x2160 node tools/render.mjs          render at another 16:9 size
@@ -26,13 +25,10 @@ const LOGO_SVG = process.env.LOGO_SVG || '/usr/share/omarchy/logo.svg';
 const SIZE = (process.env.SIZE || '6144x3456').split('x').map(Number);
 const ONLY = process.env.VARIANTS ? process.env.VARIANTS.split(',') : VARIANTS.map(v => v.key);
 
-// Background kinds and their file names. The number sets the order in Omarchy.
+// Background kinds and their file names. tools/photo.mjs renders the other
+// backgrounds as photographs.
 export const BACKGROUNDS = [
-  ['wordmark', '0-omarchy-wordmark'],
-  ['latte-art', '1-latte-art'],
   ['recipe', '2-recipe'],
-  ['crema', '3-crema-swirl'],
-  ['beans', '4-coffee-beans'],
 ];
 const KINDS = process.env.KINDS ? process.env.KINDS.split(',') : BACKGROUNDS.map(([k]) => k);
 

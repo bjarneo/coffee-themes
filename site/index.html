@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Coffee Themes for Omarchy</title>
-<meta name="description" content="82 coffee themes for Omarchy, from espresso to Italian roast. Each theme has a night variant and a day variant, and each variant has 5 backgrounds at 6K and 2 videos.">
+<meta name="description" content="82 coffee themes for Omarchy, from espresso to Italian roast. Each theme has a night variant and a day variant, and each variant has 5 backgrounds at 6K and a steam video.">
 <meta property="og:title" content="Coffee Themes for Omarchy">
 <meta property="og:description" content="82 coffee themes × night and day = 164 Omarchy themes, with 820 backgrounds at 6K.">
 <meta property="og:image" content="https://bjarneo.github.io/coffee-themes/assets/mosaic.jpg">
@@ -281,8 +281,8 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
       <div class="hero-text">
         <div class="eyebrow">Omarchy · 82 themes · night and day</div>
         <h1>A <em>coffee</em> menu for your desktop</h1>
-        <p class="lead">Every drink from espresso to Italian roast, as an Omarchy theme. Each theme has a night variant and a day variant. Each variant has 5 backgrounds at 6K: the Omarchy wordmark, latte art, the recipe, a crema swirl and roasted beans. 2 more backgrounds are videos: steam drifts over the Omarchy wordmark poured as latte art, and the 5 images pour into each other like cream.</p>
-        <div class="stats"><span><b>82</b> drinks</span><span><b>2</b> variants each</span><span><b>164</b> Omarchy themes</span><span><b>820</b> backgrounds at 6K</span><span><b>328</b> videos</span></div>
+        <p class="lead">Every drink from espresso to Italian roast, as an Omarchy theme. Each theme has a night variant and a day variant. Each variant has 5 backgrounds at 6K. 4 are photographic renders: the Omarchy wordmark spelled in coffee beans, the drink in its cup, a crema swirl and roasted beans. The fifth is the recipe. A sixth background is a video: steam drifts over the Omarchy wordmark, poured as latte art.</p>
+        <div class="stats"><span><b>82</b> drinks</span><span><b>2</b> variants each</span><span><b>164</b> Omarchy themes</span><span><b>820</b> backgrounds at 6K</span><span><b>164</b> steam videos</span></div>
         <div class="cta">
           <a class="btn primary" href="#menu">Browse the menu</a>
           <a class="btn" href="#install">Install</a>
@@ -300,7 +300,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 
     <section id="menu" aria-labelledby="menu-title">
       <h2 id="menu-title">The <em>menu</em></h2>
-      <p class="sub">The switch at the top sets night or day for the whole menu. Select a drink to see both variants, all 7 backgrounds, the colors and the install command.</p>
+      <p class="sub">The switch at the top sets night or day for the whole menu. Select a drink to see both variants, all 6 backgrounds, the colors and the install command.</p>
       <div class="toolbar">
         <div class="chips" id="chips" role="group" aria-label="Category"></div>
         <input class="search" id="q" type="search" placeholder="Search drinks" aria-label="Search drinks by name" autocomplete="off">
@@ -343,7 +343,7 @@ omarchy theme set cappuccino-night">Copy</button><span class="p">$ </span>git cl
 
   <footer>
     <p>Each palette starts from the drink: its background, its signature color and a second color for the window borders. The 6 main ANSI colors reach at least 5.5:1 against the background at night and 4.5:1 in the day, the WCAG AA level.</p>
-    <p>The scripts in <a href="https://github.com/bjarneo/coffee-themes/tree/main/tools">tools/</a> draw the backgrounds, the desktop screenshots and the video. Omarchy is at <a href="https://omarchy.org">omarchy.org</a>.</p>
+    <p>The scripts in <a href="https://github.com/bjarneo/coffee-themes/tree/main/tools">tools/</a> render the backgrounds on the GPU and make the video. The screenshots are real captures of an Omarchy desktop. Omarchy is at <a href="https://omarchy.org">omarchy.org</a>.</p>
   </footer>
 </div>
 
@@ -392,16 +392,15 @@ const REPO = 'https://github.com/bjarneo/coffee-themes';
 const SITE = 'https://bjarneo.github.io/coffee-themes';
 const RAW = 'https://raw.githubusercontent.com/bjarneo/coffee-themes/main';
 const NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
-// The 7 backgrounds of each variant, in the order that Omarchy shows them.
-// The last 2 are videos.
+// The 6 backgrounds of each variant, in the order that Omarchy shows them.
+// The last one is a video.
 const BACKGROUNDS = [
   { key: 'wordmark', file: '0-omarchy-wordmark', label: 'Wordmark' },
-  { key: 'latte-art', file: '1-latte-art', label: 'Latte art' },
+  { key: 'latte-art', file: '1-latte-art', label: 'Drink' },
   { key: 'recipe', file: '2-recipe', label: 'Recipe' },
   { key: 'crema', file: '3-crema-swirl', label: 'Crema swirl' },
   { key: 'beans', file: '4-coffee-beans', label: 'Beans' },
   { key: 'steam', file: '5-steam', label: 'Steam', video: true },
-  { key: 'pour', file: '6-pour', label: 'Pour', video: true },
 ];
 const RECIPE_LABEL = { drink: 'Recipe', roast: 'Roast curve', cherry: 'Coffee cherry' };
 const { variants: VARIANTS, categories: CATS, themes: T } = window.THEMES;
@@ -474,7 +473,7 @@ const thumbs = new IntersectionObserver(entries => {
   }
 }, { rootMargin: '300px 0px' });
 
-// A variant without a screenshot shows its latte art background instead.
+// A variant without a screenshot shows its drink background instead.
 function fallback(img, src) { img.onerror = () => { img.onerror = null; img.src = src; }; }
 
 function paintCards() {
@@ -531,7 +530,7 @@ function imageFor(t) {
 // aether:// links, built like the links in 100-themes. Aether stops a
 // download after 60 seconds, so the links use the 3840x2160 copies in
 // assets/aether. silent=true applies without the Aether window.
-// The desktop and the videos use the latte art background, because Aether
+// The desktop and the videos use the drink background, because Aether
 // applies still images.
 const isVideo = key => !!BACKGROUNDS.find(b => b.key === key)?.video;
 const aetherView = () => view === 'shot' || isVideo(view) ? 'latte-art' : view;

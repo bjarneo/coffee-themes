@@ -8,21 +8,17 @@
 <body>
 <canvas id="c"></canvas>
 <script>
-// Background renderer for the night and day variants. tools/render.mjs loads
-// this page in headless Chromium and calls window.renderImage() once for each
-// background. All drawing uses a 3840x2160 design space. S scales the design
-// space to the output size. Full-size layers use the output resolution, and
-// blur radii scale with S, so every size looks the same.
+// The recipe background and the drink textures. tools/render.mjs loads this
+// page in headless Chromium and calls window.renderImage() for each image.
+// All drawing uses a 3840x2160 design space. S scales the design space to
+// the output size, and blur radii scale with S, so every size looks the same.
 //
-// The 5 kinds:
-//   wordmark   the Omarchy wordmark with coffee ring stains
-//   latte-art  a top view of the drink on a table
-//   recipe     a cross-section of the drink, a roast curve or a coffee cherry
-//   crema      cream that swirls into coffee
-//   beans      roasted coffee beans
+// The kinds:
+//   recipe   a cross-section of the drink, a roast curve or a coffee cherry
+//   surface  the top of the drink as a square texture for tools/photo.html
+//   layers   the layers of the recipe as a strip for tools/photo.html
 //
-// tools/steam.mjs also uses 'cup-wordmark': a large cup with the Omarchy
-// wordmark as latte art, the still under the steam video.
+// tools/photo.html renders the other backgrounds as photographs.
 
 const W = 3840, H = 2160;
 const MONO = '"JetBrainsMono Nerd Font", "JetBrains Mono", monospace';
@@ -53,16 +49,6 @@ function lum(hex) { const [r, g, b] = rgb(hex); return (.2126 * r + .7152 * g + 
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
-
-// A layer without a size covers the design space at the output resolution.
-// Draw it back with drawImage(cv, 0, 0, W, H).
-function layer() {
-  const cv = document.createElement('canvas');
-  cv.width = Math.round(W * S); cv.height = Math.round(H * S);
-  const cx = cv.getContext('2d');
-  cx.setTransform(S, 0, 0, S, 0, 0);
-  return [cv, cx];
-}
 
 // Canvas blur ignores the transform, so the radius scales with S.
 const blur = r => `blur(${(r * S).toFixed(1)}px)`;
@@ -133,24 +119,6 @@ function grain(ctx, seed, alpha = .05) {
 
 // Draws a shape with a soft shadow below and to the right, as if the light
 // comes from the top left.
-// box is the area of the shape as [x0, y0, x1, y1] in design px. The layers
-// cover only that area plus room for the blur, which keeps 6K renders fast.
-function shadowed(ctx, P, draw, { dx = 34, dy = 46, radius = 40, alpha, box = [0, 0, W, H] } = {}) {
-  const pad = radius * 3;
-  const x0 = Math.max(-pad, box[0] - pad), y0 = Math.max(-pad, box[1] - pad);
-  const x1 = Math.min(W + pad, box[2] + pad), y1 = Math.min(H + pad, box[3] + pad);
-  const w = Math.ceil((x1 - x0) * S), h = Math.ceil((y1 - y0) * S);
-  const make = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-  const cv = make(), lx = cv.getContext('2d');
-  lx.setTransform(S, 0, 0, S, -x0 * S, -y0 * S);
-  draw(lx);
-  const sv = make(), sx = sv.getContext('2d');
-  sx.drawImage(cv, 0, 0);
-  sx.globalCompositeOperation = 'source-in'; sx.fillStyle = P.light ? mix(P.c[8], '#000000', .6) : '#000000'; sx.fillRect(0, 0, w, h);
-  ctx.save(); ctx.filter = blur(radius); ctx.globalAlpha = alpha ?? (P.light ? .3 : .6); ctx.drawImage(sv, x0 + dx, y0 + dy, x1 - x0, y1 - y0); ctx.restore();
-  ctx.drawImage(cv, x0, y0, x1 - x0, y1 - y0);
-}
-
 // A soft ellipse that fades out at the edge. It replaces a blur filter, which
 // is slow on a 6K canvas when it runs hundreds of times.
 function softEllipse(ctx, x, y, rx, ry, rot, color, alpha) {
@@ -215,92 +183,6 @@ function blend(P, layers) {
 
 const pct = (parts, total) => `${Math.max(1, Math.round(parts / total * 100))}%`;
 
-// ---------- the wordmark background ----------
-
-function drawLogo(ctx, x, y, scale, fill) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-  ctx.fillStyle = fill;
-  LOGO.forEach(p => ctx.fill(p.path, p.rule));
-  ctx.restore();
-}
-
-// A coffee ring stain: a dark irregular edge and a faint fill.
-function stain(ctx, P, x, y, r, noise, seed, alpha) {
-  const col = P.light ? mix(roastColor(.45), P.accent, .2) : mix(roastColor(.3), P.accent, .3);
-  const pts = [];
-  for (let i = 0; i <= 180; i++) {
-    const a = i / 180 * Math.PI * 2;
-    const rr = r * (1 + noise(Math.cos(a) * 1.4 + seed, Math.sin(a) * 1.4 + seed) * .08);
-    pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]);
-  }
-  ctx.save();
-  ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py));
-  ctx.fillStyle = rgba(col, alpha * .18); ctx.fill();
-  // The ring is not closed everywhere, like a real stain.
-  const gap = (seed * 97) % 180;
-  ctx.lineCap = 'round';
-  for (const [w, a] of [[10, alpha], [4, alpha * .7]]) {
-    ctx.beginPath();
-    let open = false;
-    pts.forEach(([px, py], i) => {
-      const skip = Math.abs(i - gap) < 22;
-      if (skip) { open = false; return; }
-      if (!open) { ctx.moveTo(px, py); open = true; } else ctx.lineTo(px, py);
-    });
-    ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w; ctx.filter = blur(w === 10 ? 3 : 1); ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function steam(ctx, P, x, y, height, r) {
-  ctx.save();
-  ctx.lineCap = 'round';
-  for (let k = 0; k < 3; k++) {
-    const ox = x + (k - 1) * 120 + (r() - .5) * 40, ph = r() * 6;
-    ctx.beginPath();
-    for (let i = 0; i <= 60; i++) {
-      const t = i / 60, yy = y - t * height;
-      const xx = ox + Math.sin(t * 7 + ph) * 46 * t + Math.sin(t * 2.3 + ph) * 30;
-      i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
-    }
-    const g = ctx.createLinearGradient(0, y, 0, y - height);
-    const col = P.light ? P.c[8] : P.fg;
-    g.addColorStop(0, rgba(col, 0)); g.addColorStop(.25, rgba(col, P.light ? .32 : .22)); g.addColorStop(1, rgba(col, 0));
-    ctx.strokeStyle = g; ctx.lineWidth = 16; ctx.filter = blur(12); ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function wordmark(ctx, P, r, noise) {
-  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
-  const glow = ctx.createRadialGradient(W / 2, H * .46, 0, W / 2, H * .46, W * .55);
-  glow.addColorStop(0, rgba(P.accent, P.light ? .1 : .12)); glow.addColorStop(1, rgba(P.accent, 0));
-  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-
-  // Ring stains in the corners, never over the wordmark
-  const spots = [[.12, .2], [.86, .78], [.8, .16], [.18, .84], [.5, .9]];
-  for (let i = 0; i < 3; i++) {
-    const [sx, sy] = spots[(P.index + i * 2) % spots.length];
-    stain(ctx, P, W * sx + (r() - .5) * 200, H * sy + (r() - .5) * 120, 260 + r() * 140, noise, i * 13 + P.index, P.light ? .22 : .2);
-  }
-
-  const scale = 1500 / 1215, lw = 1215 * scale, lh = 285 * scale;
-  const lx = (W - lw) / 2, ly = H * .47 - lh / 2;
-  steam(ctx, P, W / 2, ly - 60, 420, r);
-  const grad = ctx.createLinearGradient(0, 0, 1215, 0);
-  grad.addColorStop(0, P.accent); grad.addColorStop(1, P.second);
-  shadowed(ctx, P, lx2 => drawLogo(lx2, lx, ly, scale, grad), { dx: 10, dy: 16, radius: 24, alpha: P.light ? .25 : .5, box: [lx, ly, lx + lw, ly + lh] });
-
-  // Saucer line under the wordmark, then the 12 ANSI colors as coffee beans
-  const sy = ly + lh + 150;
-  ctx.fillStyle = rgba(P.c[8], .5); ctx.fillRect(W / 2 - 520, sy, 1040, 4);
-  const cols = [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14], gap = 86, x0 = W / 2 - (cols.length - 1) * gap / 2;
-  cols.forEach((k, i) => bean(ctx, P, x0 + i * gap, sy + 90, 54, -Math.PI / 2 + (i % 2 ? .25 : -.25), P.c[k], false, P.light ? .2 : .5));
-  text(ctx, P.name.toUpperCase(), W / 2, sy + 250, 40, P.c[8], { align: 'center', spacing: 14 });
-  vignette(ctx, P);
-  grain(ctx, P.index * 31, .05);
-}
-
 // ---------- coffee beans ----------
 
 // One bean. len is the long axis in design px. flat shows the crease side.
@@ -331,187 +213,7 @@ function bean(ctx, P, x, y, len, rot, color, flat = true, shadow = .45, oily = f
   }
 }
 
-function cherry(ctx, x, y, r, color) {
-  ctx.save();
-  softEllipse(ctx, x + r * .2, y + r * .28, r * 1.2, r * 1.2, 0, '#000000', .4);
-  const g = ctx.createRadialGradient(x - r * .35, y - r * .35, r * .1, x, y, r);
-  g.addColorStop(0, mix(color, '#ffffff', .35)); g.addColorStop(.6, color); g.addColorStop(1, mix(color, '#000000', .45));
-  ctx.fillStyle = g; circle(ctx, x, y, r); ctx.fill();
-  ctx.fillStyle = mix(color, '#000000', .5); circle(ctx, x + r * .1, y + r * .05, r * .12); ctx.fill();
-  ctx.restore();
-}
-
-function leaf(ctx, x, y, len, rot, color) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
-  ctx.beginPath(); ctx.moveTo(0, 0);
-  ctx.bezierCurveTo(len * .3, -len * .28, len * .75, -len * .22, len, 0);
-  ctx.bezierCurveTo(len * .75, len * .22, len * .3, len * .28, 0, 0);
-  const g = ctx.createLinearGradient(0, -len * .25, 0, len * .25);
-  g.addColorStop(0, mix(color, '#ffffff', .15)); g.addColorStop(1, mix(color, '#000000', .35));
-  ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = mix(color, '#ffffff', .3); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len * .95, 0); ctx.stroke();
-  ctx.restore();
-}
-
-function beans(ctx, P, r, noise) {
-  const g = ctx.createRadialGradient(W * .4, H * .35, 0, W * .5, H * .5, W * .7);
-  g.addColorStop(0, P.light ? mix(P.bg, '#ffffff', .4) : mix(P.bg, P.accent, .05)); g.addColorStop(1, P.light ? P.bg : P.darker);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // Paper or slate texture
-  pixels(ctx, (x, y) => {
-    const v = noise.fbm(x * .004, y * .004, 3) * .5 + noise(x * .05, y * .05) * .15;
-    const c = rgb(P.light ? P.bg : mix(P.bg, P.darker, .5));
-    return c.map(ch => ch * (1 + v * (P.light ? .05 : .12)));
-  }, 1400);
-  ctx.save(); ctx.globalCompositeOperation = 'source-over';
-  const gl = ctx.createRadialGradient(W * .3, H * .25, 0, W * .3, H * .25, W * .7);
-  gl.addColorStop(0, rgba(P.light ? '#ffffff' : P.accent, P.light ? .35 : .08)); gl.addColorStop(1, rgba(P.bg, 0));
-  ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H); ctx.restore();
-
-  const base = mix(roastColor(P.roast), P.accent, .1);
-  const oily = P.roast > .66;
-  // A dense drift of beans from the bottom right, thinning out to the top left
-  const list = [];
-  for (let i = 0; i < 2600 && list.length < 340; i++) {
-    const x = r() * (W + 200) - 100, y = r() * (H + 200) - 100;
-    const d = ((W - x) / W) * .9 + ((H - y) / H) * .7 + noise(x * .0012, y * .0012) * .6;
-    if (r() > Math.pow(clamp(1.25 - d, 0, 1), 1.6) * 1.2) continue;
-    const len = 120 + r() * 40;
-    if (list.some(b => Math.hypot(b.x - x, b.y - y) < (b.len + len) * .42)) continue;
-    list.push({ x, y, len, rot: r() * Math.PI * 2, flat: r() < .6, tone: (r() - .5) * .16 });
-  }
-  // A few beans fall out on their own
-  for (let i = 0; i < 9; i++) list.push({ x: W * (.08 + r() * .45), y: H * (.12 + r() * .55), len: 120 + r() * 30, rot: r() * 6.3, flat: r() < .6, tone: (r() - .5) * .16 });
-  list.sort((a, b) => a.y - b.y);
-  const accentBeans = P.cat === 'beans';
-  for (const b of list) {
-    const col = b.tone > 0 ? mix(base, '#ffffff', b.tone * .5) : mix(base, '#000000', -b.tone);
-    bean(ctx, P, b.x, b.y, b.len, b.rot, col, b.flat, P.light ? .3 : .6, oily);
-  }
-  // Coffee beans themes get cherries and leaves on top of the pile
-  if (accentBeans) {
-    const red = mix('#b3262a', P.accent, .35), green = mix('#3f6b34', P.second, .25);
-    leaf(ctx, W * .7, H * .62, 520, -2.4, green);
-    leaf(ctx, W * .74, H * .66, 440, -1.2, mix(green, '#000000', .15));
-    [[.66, .6], [.69, .64], [.64, .66], [.71, .58]].forEach(([cx, cy], i) => cherry(ctx, W * cx, H * cy, 64 - i * 4, i === 3 ? mix(red, '#d8b030', .5) : red));
-  }
-  vignette(ctx, P, P.light ? .18 : .5);
-  grain(ctx, P.index * 41, .05);
-}
-
-// ---------- crema swirl ----------
-
-function crema(ctx, P, r, noise) {
-  const coffee = roastColor(P.roast * .8 + .2), milk = P.light ? mix('#fbf6ee', P.bg, .3) : mix('#e9dcc8', P.bg, .2);
-  const caramel = mix(mix(roastColor(.15), '#c8843a', .5), P.accent, .3);
-  const stops = (P.light
-    ? [milk, mix(milk, caramel, .35), caramel, mix(coffee, caramel, .4), coffee]
-    : [mix(P.darker, coffee, .3), coffee, mix(coffee, caramel, .55), caramel, milk]).map(rgb);
-  const cx = W * .6, cy = H * .5, f = .00075, k = 3.2;
-  const n2 = makeNoise(P.index * 977 + 5);
-  const m = rgb(milk), a = rgb(P.accent);
-  pixels(ctx, (x, y) => {
-    // Stir: the field turns around a point, more near the point
-    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
-    const a = 2.6 * Math.exp(-d / 900);
-    const rx = cx + dx * Math.cos(a) - dy * Math.sin(a), ry = cy + dx * Math.sin(a) + dy * Math.cos(a);
-    const px = rx * f, py = ry * f;
-    const qx = noise.fbm(px, py, 4), qy = noise.fbm(px + 5.2, py + 1.3, 4);
-    const sx = n2.fbm(px + k * qx + 1.7, py + k * qy + 9.2, 4), sy = n2.fbm(px + k * qx + 8.3, py + k * qy + 2.8, 4);
-    const v = noise.fbm(px + k * sx, py + k * sy, 4);
-    let t = clamp(v * 1.6 + .5, 0, 1);
-    // Thin bright ribbons where the cream folds, and thin ribbons of the accent
-    const ribbon = Math.exp(-Math.abs(sx - .08) * 60), syrup = Math.exp(-Math.abs(sy + .12) * 70);
-    const c = ramp(stops, t);
-    return c.map((ch, i) => {
-      const v = ch + (m[i] - ch) * ribbon * (P.light ? .25 : .55);
-      return v + (a[i] - v) * syrup * .45;
-    });
-  }, 1600);
-  // Glossy light from the top left
-  const g = ctx.createRadialGradient(W * .25, H * .1, 0, W * .25, H * .1, W * .8);
-  g.addColorStop(0, `rgba(255,255,255,${P.light ? .18 : .07})`); g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // Small bubbles
-  for (let i = 0; i < 260; i++) {
-    const x = r() * W, y = r() * H, s = Math.pow(r(), 3) * 14 + 2;
-    ctx.strokeStyle = `rgba(255,255,255,${.06 + r() * .14})`; ctx.lineWidth = 1.5;
-    circle(ctx, x, y, s); ctx.stroke();
-  }
-  vignette(ctx, P, P.light ? .14 : .45);
-  grain(ctx, P.index * 19, .06);
-}
-
-// ---------- the table ----------
-
-function table(ctx, P, r, noise) {
-  const kinds = P.light ? ['marble', 'linen', 'oak'] : ['walnut', 'slate', 'walnut'];
-  const kind = kinds[P.index % 3];
-  if (kind === 'walnut' || kind === 'oak') {
-    const dark = kind === 'walnut' ? mix(P.darker, roastColor(.85), .35) : mix(P.bg, roastColor(.2), .3);
-    const light = kind === 'walnut' ? mix(P.bg, roastColor(.55), .3) : mix(P.bg, '#ffffff', .45);
-    const a = rgb(dark), b = rgb(light);
-    pixels(ctx, (x, y) => {
-      const plank = Math.floor((y + noise(x * .0004, 3) * 40) / 330);
-      const yy = y + plank * 211;
-      const gtex = noise.fbm(x * .0007 + plank * 7.3, yy * .012, 4);
-      const t = .5 + .5 * Math.sin(gtex * 18 + yy * .015);
-      const fine = noise(x * .02 + plank, yy * .4) * .25;
-      const seam = Math.abs(((y + noise(x * .0004, 3) * 40) % 330 + 330) % 330) < 4 ? .55 : 0;
-      const v = clamp(t * .55 + fine + .2, 0, 1) * (1 - seam);
-      return a.map((ch, i) => ch + (b[i] - ch) * v);
-    }, 2000);
-  } else if (kind === 'marble') {
-    const base = rgb(mix(P.bg, '#ffffff', .55)), vein = rgb(mix(P.c[8], P.accent, .2));
-    pixels(ctx, (x, y) => {
-      const wx = noise.fbm(x * .0006, y * .0006, 4) * 2.2;
-      const v = Math.abs(noise.fbm(x * .0011 + wx, y * .0011 - wx, 5));
-      const veinT = Math.exp(-v * 55) * .55 + Math.exp(-v * 14) * .12;
-      const cloud = noise.fbm(x * .002, y * .002, 3) * .04;
-      return base.map((ch, i) => ch * (1 + cloud) + (vein[i] - ch) * veinT);
-    }, 2000);
-  } else if (kind === 'linen') {
-    ctx.fillStyle = mix(P.bg, P.c[0], .5); ctx.fillRect(0, 0, W, H);
-    const fine = rgb(P.c[8]);
-    pixels(ctx, (x, y) => {
-      const wv = Math.sin(x * .9) * .5 + Math.sin(y * .9) * .5;
-      const slub = noise(x * .01, y * .3) * .6 + noise(x * .3, y * .01) * .6;
-      const base = rgb(mix(P.bg, '#ffffff', .2));
-      const t = clamp(.08 + wv * .03 + slub * .05, 0, 1);
-      return base.map((ch, i) => ch + (fine[i] - ch) * t);
-    }, 3000);
-  } else {
-    const base = rgb(mix(P.darker, P.bg, .6));
-    pixels(ctx, (x, y) => {
-      const v = noise.fbm(x * .002, y * .002, 5) * .25 + noise(x * .03, y * .03) * .08;
-      return base.map(ch => ch * (1 + v));
-    }, 2000);
-  }
-  // Soft window light from the top left
-  const g = ctx.createRadialGradient(W * .22, H * .05, 0, W * .3, H * .2, W * .9);
-  g.addColorStop(0, `rgba(255,${P.light ? 255 : 230},${P.light ? 250 : 200},${P.light ? .22 : .1})`); g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-}
-
-// ---------- cups ----------
-
-// Top view sizes: liquid radius, rim width, saucer radius, handle, material.
-const CUPS = {
-  hero: { R: 540, rim: 66, saucer: 780, handle: 1, material: 'ceramic' },
-  demitasse: { R: 290, rim: 58, saucer: 600, handle: 1, material: 'ceramic' },
-  cup: { R: 420, rim: 66, saucer: 800, handle: 1, material: 'ceramic' },
-  mug: { R: 450, rim: 80, saucer: 0, handle: 1.2, material: 'ceramic' },
-  enamel: { R: 440, rim: 60, saucer: 0, handle: 1.2, material: 'enamel' },
-  bowl: { R: 560, rim: 62, saucer: 0, handle: 0, material: 'ceramic' },
-  clay: { R: 430, rim: 76, saucer: 0, handle: 1.2, material: 'clay' },
-  finjan: { R: 260, rim: 44, saucer: 520, handle: 0, material: 'ceramic' },
-  guksi: { R: 380, rim: 70, saucer: 0, handle: 1.1, material: 'wood' },
-  glass: { R: 340, rim: 22, saucer: 0, handle: 0, material: 'glass' },
-  tall: { R: 360, rim: 22, saucer: 0, handle: 0, material: 'glass' },
-  tumbler: { R: 420, rim: 24, saucer: 0, handle: 0, material: 'glass' },
-  stemmed: { R: 400, rim: 20, saucer: 0, handle: 0, material: 'glass' },
-  coupe: { R: 470, rim: 16, saucer: 0, handle: 0, material: 'glass' },
-};
+// ---------- cup glazes ----------
 
 function glaze(P) { return P.light ? mix('#fdfbf7', P.accent, .1) : mix(mix(P.bg, P.fg, .3), P.accent, .16); }
 
@@ -520,87 +222,6 @@ function material(P, kind) {
   if (kind === 'wood') return mix('#a0703c', P.accent, .1);
   if (kind === 'enamel') return P.light ? mix('#3d6fa8', P.second, .3) : mix('#2f5582', P.second, .3);
   return glaze(P);
-}
-
-function saucer(ctx, P, x, y, R) {
-  const col = glaze(P);
-  shadowed(ctx, P, lx => {
-    const g = lx.createRadialGradient(x - R * .3, y - R * .35, R * .1, x, y, R);
-    g.addColorStop(0, mix(col, '#ffffff', .18)); g.addColorStop(.8, col); g.addColorStop(1, mix(col, '#000000', .25));
-    lx.fillStyle = g; circle(lx, x, y, R); lx.fill();
-    // The well in the middle
-    lx.strokeStyle = rgba(mix(col, '#000000', .4), .35); lx.lineWidth = 6; circle(lx, x, y, R * .62); lx.stroke();
-    lx.strokeStyle = 'rgba(255,255,255,.25)'; lx.lineWidth = 4;
-    lx.beginPath(); lx.arc(x, y, R - 14, Math.PI * .95, Math.PI * 1.6); lx.stroke();
-  }, { dx: 28, dy: 40, radius: 46, box: [x - R, y - R, x + R, y + R] });
-}
-
-function spoon(ctx, P, x, y, rot, len = 520) {
-  const metal = P.light ? '#c9cbd0' : '#8d9097';
-  shadowed(ctx, P, lx => {
-    lx.save(); lx.translate(x, y); lx.rotate(rot);
-    const g = lx.createLinearGradient(0, -40, 0, 40);
-    g.addColorStop(0, '#f4f5f7'); g.addColorStop(.5, metal); g.addColorStop(1, mix(metal, '#000000', .35));
-    lx.fillStyle = g;
-    lx.beginPath(); lx.ellipse(0, 0, len * .16, len * .1, 0, 0, Math.PI * 2); lx.fill();
-    lx.beginPath(); lx.moveTo(len * .12, -12); lx.lineTo(len, -16); lx.quadraticCurveTo(len + 26, 0, len, 16); lx.lineTo(len * .12, 12); lx.closePath(); lx.fill();
-    lx.fillStyle = 'rgba(255,255,255,.55)'; lx.beginPath(); lx.ellipse(-len * .04, -len * .03, len * .08, len * .03, -.2, 0, Math.PI * 2); lx.fill();
-    lx.restore();
-  }, { dx: 14, dy: 22, radius: 14, box: [x - len * 1.1, y - len * 1.1, x + len * 1.1, y + len * 1.1] });
-}
-
-function sugarCube(ctx, P, x, y, s, rot) {
-  shadowed(ctx, P, lx => {
-    lx.save(); lx.translate(x, y); lx.rotate(rot);
-    lx.fillStyle = P.light ? '#fbfaf6' : '#d9d4ca';
-    lx.beginPath(); lx.roundRect(-s / 2, -s / 2, s, s, s * .12); lx.fill();
-    lx.fillStyle = 'rgba(0,0,0,.08)';
-    const r = rng(Math.round(x));
-    for (let i = 0; i < 60; i++) lx.fillRect(-s / 2 + r() * s, -s / 2 + r() * s, 3, 3);
-    lx.restore();
-  }, { dx: 10, dy: 14, radius: 10, box: [x - s, y - s, x + s, y + s] });
-}
-
-function lemonWheel(ctx, P, x, y, R, rot) {
-  shadowed(ctx, P, lx => {
-    lx.save(); lx.translate(x, y); lx.rotate(rot);
-    lx.fillStyle = '#e8c42e'; circle(lx, 0, 0, R); lx.fill();
-    lx.fillStyle = '#fbf3cf'; circle(lx, 0, 0, R * .9); lx.fill();
-    for (let i = 0; i < 9; i++) {
-      const a0 = i / 9 * Math.PI * 2 + .05, a1 = (i + 1) / 9 * Math.PI * 2 - .05;
-      lx.beginPath(); lx.moveTo(Math.cos((a0 + a1) / 2) * R * .1, Math.sin((a0 + a1) / 2) * R * .1);
-      lx.arc(0, 0, R * .82, a0, a1); lx.closePath();
-      lx.fillStyle = '#f6d84a'; lx.fill();
-    }
-    lx.restore();
-  }, { dx: 12, dy: 18, radius: 14, box: [x - R, y - R, x + R, y + R] });
-}
-
-function cinnamonStick(ctx, P, x, y, len, rot) {
-  shadowed(ctx, P, lx => {
-    lx.save(); lx.translate(x, y); lx.rotate(rot);
-    const g = lx.createLinearGradient(0, -34, 0, 34);
-    g.addColorStop(0, '#b9733e'); g.addColorStop(.5, '#8e4e24'); g.addColorStop(1, '#5c2f14');
-    lx.fillStyle = g; lx.beginPath(); lx.roundRect(-len / 2, -34, len, 68, 20); lx.fill();
-    lx.strokeStyle = 'rgba(60,25,8,.45)'; lx.lineWidth = 3;
-    for (let i = -len / 2 + 30; i < len / 2; i += 46) { lx.beginPath(); lx.moveTo(i, -30); lx.lineTo(i + 6, 30); lx.stroke(); }
-    lx.fillStyle = '#4a240f'; lx.beginPath(); lx.ellipse(len / 2, 0, 12, 33, 0, 0, Math.PI * 2); lx.fill();
-    lx.strokeStyle = '#c98a52'; lx.lineWidth = 4; lx.beginPath(); lx.arc(len / 2, 0, 18, -1.2, 1.4); lx.stroke();
-    lx.restore();
-  }, { dx: 16, dy: 22, radius: 16, box: [x - len * .6, y - len * .6, x + len * .6, y + len * .6] });
-}
-
-function starAnise(ctx, P, x, y, s) {
-  shadowed(ctx, P, lx => {
-    lx.save(); lx.translate(x, y);
-    for (let i = 0; i < 8; i++) {
-      lx.save(); lx.rotate(i / 8 * Math.PI * 2);
-      lx.fillStyle = '#6b3519'; lx.beginPath(); lx.ellipse(s * .55, 0, s * .5, s * .2, 0, 0, Math.PI * 2); lx.fill();
-      lx.fillStyle = '#a0623a'; lx.beginPath(); lx.ellipse(s * .55, 0, s * .16, s * .08, 0, 0, Math.PI * 2); lx.fill();
-      lx.restore();
-    }
-    lx.restore();
-  }, { dx: 10, dy: 14, radius: 10, box: [x - s * 1.2, y - s * 1.2, x + s * 1.2, y + s * 1.2] });
 }
 
 // The milk shapes. All art draws around 0,0 with the cup radius R, the tip
@@ -700,7 +321,7 @@ const ART = {};
 ART.wordmark = (c, P, R, r) => {
   cremaSurface(c, P, R, r);
   const milk = ing(P, 'steamed milk');
-  const s = R * 1.5 / 1215, lw = 1215 * s, lh = 285 * s;
+  const s = R * 1.36 / 1215, lw = 1215 * s, lh = 285 * s;
   const logo = (color, radius) => {
     c.save(); c.filter = blur(radius); c.fillStyle = color;
     c.translate(-lw / 2, -lh / 2 - R * .06); c.scale(s, s);
@@ -974,136 +595,46 @@ ART.dalgona = (c, P, R, r) => {
 let CURRENT = null;
 const t_layers = P => CURRENT.layers;
 
-// The cups draw at 1.3 times the table sizes, the saucers at 1.1 times.
-function cup(ctx, P, x, y, r, noise) {
-  const base = CUPS[CURRENT.vessel] || CUPS.cup;
-  const spec = { ...base, R: base.R * 1.3, rim: base.rim * 1.3, saucer: base.saucer * 1.1, handle: base.handle * 1.3 };
-  const R = spec.R, rim = spec.rim;
-  const isGlass = spec.material === 'glass';
-  const col = material(P, spec.material);
-  const handleAngle = .5 + (r() - .5) * .3;
-
-  if (spec.saucer) saucer(ctx, P, x, y, spec.saucer);
-  if (isGlass) {
-    // A coaster under the glass
-    const coaster = P.light ? mix('#d8c3a0', P.bg, .3) : mix('#6a5038', P.bg, .45);
-    shadowed(ctx, P, lx => { lx.fillStyle = coaster; circle(lx, x + 20, y + 30, R + 150); lx.fill(); lx.strokeStyle = rgba(mix(coaster, '#000000', .3), .5); lx.lineWidth = 6; circle(lx, x + 20, y + 30, R + 128); lx.stroke(); }, { dx: 14, dy: 20, radius: 24, box: [x - R - 140, y - R - 130, x + R + 180, y + R + 190] });
+// The surface of the drink as a square texture for tools/photo.html. The art
+// fills a circle that touches the edges. Drinks whose ice, cream, scoop or
+// cheese tools/photo.html builds in 3D get only the liquid under them.
+const SURFACE_ART = { ice: 'iceliquid', icelemon: 'iceliquid', dalgona: 'iceliquid', cream: 'black', candy: 'black', spice: 'black', affogato: 'pool', cheese: 'black' };
+ART.iceliquid = (c, P, R, r) => {
+  const layers = t_layers(P);
+  crema_base(c, P, R, blend(P, layers));
+  if (layers.some(([n]) => /milk/.test(n))) {
+    const milk = ing(P, 'cold milk');
+    c.save(); c.filter = blur(18); c.strokeStyle = rgba(milk, .55); c.lineWidth = R * .12; c.lineCap = 'round';
+    c.beginPath(); for (let i = 0; i < 120; i++) { const a = i / 120 * Math.PI * 4, rr = R * (.85 - i / 120 * .7); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(rr, 0); } c.stroke(); c.restore();
   }
-
-  shadowed(ctx, P, lx => {
-    if (spec.handle) {
-      const hx = x + Math.cos(handleAngle) * (R + rim), hy = y + Math.sin(handleAngle) * (R + rim);
-      lx.save(); lx.translate(hx, hy); lx.rotate(handleAngle);
-      const hl = 170 * spec.handle, hw = 92 * spec.handle;
-      const g = lx.createLinearGradient(0, -hw / 2, 0, hw / 2);
-      g.addColorStop(0, mix(col, '#ffffff', .2)); g.addColorStop(1, mix(col, '#000000', .3));
-      lx.fillStyle = g; lx.beginPath(); lx.roundRect(-20, -hw / 2, hl, hw, hw * .45); lx.fill();
-      lx.fillStyle = rgba('#000000', .18); lx.beginPath(); lx.roundRect(hl * .25, -hw * .18, hl * .5, hw * .36, hw * .18); lx.fill();
-      lx.restore();
-    }
-    if (isGlass) {
-      lx.fillStyle = rgba(P.light ? '#ffffff' : '#c8d8e0', P.light ? .35 : .12); circle(lx, x, y, R + rim); lx.fill();
-    } else {
-      const g = lx.createLinearGradient(x - R, y - R, x + R, y + R);
-      g.addColorStop(0, mix(col, '#ffffff', .22)); g.addColorStop(1, mix(col, '#000000', .25));
-      lx.fillStyle = g; circle(lx, x, y, R + rim); lx.fill();
-    }
-  }, { ...(isGlass ? { alpha: P.light ? .15 : .35, radius: 50 } : {}), box: [x - R - rim - 320, y - R - rim - 320, x + R + rim + 320, y + R + rim + 320] });
-
-  if (spec.material === 'enamel') {
-    // Speckled enamel and a dark rim line
-    for (let i = 0; i < 300; i++) { const a = r() * Math.PI * 2, d = R + r() * rim; ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d, 4, 4); }
-    ctx.strokeStyle = '#1d2230'; ctx.lineWidth = 12; circle(ctx, x, y, R + rim - 6); ctx.stroke();
-  }
-  if (spec.material === 'wood') {
-    ctx.save(); ctx.strokeStyle = rgba('#4a2a10', .35); ctx.lineWidth = 3;
-    for (let i = 0; i < 8; i++) { circle(ctx, x + 10, y + 6, R + 8 + i * 8); ctx.stroke(); }
-    ctx.restore();
-  }
-
-  // Inner wall: in shadow at the top left, lit at the bottom right
-  if (!isGlass) {
-    const wall = ctx.createLinearGradient(x - R, y - R, x + R, y + R);
-    wall.addColorStop(0, mix(col, '#000000', .35)); wall.addColorStop(1, mix(col, '#ffffff', .12));
-    ctx.fillStyle = wall; circle(ctx, x, y, R + rim * .45); ctx.fill();
-  }
-
-  // The drink
-  ctx.save(); circle(ctx, x, y, R); ctx.clip();
-  // The wordmark stays level. Other art turns a little, like a real pour.
-  ctx.translate(x, y); ctx.rotate(CURRENT.art === 'wordmark' ? 0 : (r() - .5) * .35);
-  (ART[CURRENT.art] || ART.black)(ctx, P, R, r);
+  if (layers.some(([n]) => n === 'tonic water')) bubbles(c, R, r, '#ffffff', 220, 6);
+};
+ART.pool = (c, P, R, r) => crema_base(c, P, R, mix(ing(P, 'espresso'), '#7a4a28', .3));
+function surface(ctx, P, r) {
+  const R = 1920;
+  ctx.save();
+  ctx.fillStyle = mix(ing(P, 'crema'), '#000000', .3); ctx.fillRect(0, 0, 3840, 3840);
+  circle(ctx, R, R, R); ctx.clip(); ctx.translate(R, R);
+  const art = SURFACE_ART[CURRENT.art] || CURRENT.art;
+  (ART[art] || ART.black)(ctx, P, R, r);
   ctx.restore();
-
-  // The rim casts a soft shadow on the drink at the top left
-  ctx.save(); circle(ctx, x, y, R); ctx.clip();
-  const sh = ctx.createRadialGradient(x + R * .18, y + R * .22, R * .7, x, y, R * 1.05);
-  sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, `rgba(0,0,0,${P.light ? .28 : .45})`);
-  ctx.fillStyle = sh; ctx.fillRect(x - R, y - R, R * 2, R * 2);
-  // Window reflection
-  ctx.filter = blur(18); ctx.fillStyle = `rgba(255,255,255,${['ice', 'icelemon', 'black', 'golden'].includes(CURRENT.art) ? .18 : .08})`;
-  ctx.beginPath(); ctx.roundRect(x - R * .62, y - R * .7, R * .34, R * .26, 20); ctx.fill();
-  ctx.beginPath(); ctx.roundRect(x - R * .24, y - R * .74, R * .3, R * .26, 20); ctx.fill();
-  ctx.restore();
-
-  // Rim highlights
-  ctx.save(); ctx.lineCap = 'round';
-  ctx.strokeStyle = `rgba(255,255,255,${isGlass ? .7 : .35})`; ctx.lineWidth = isGlass ? 6 : 5;
-  ctx.beginPath(); ctx.arc(x, y, R + rim - 4, Math.PI * 1.0, Math.PI * 1.55); ctx.stroke();
-  ctx.strokeStyle = `rgba(255,255,255,${isGlass ? .45 : .2})`; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(x, y, R + 2, Math.PI * .05, Math.PI * .55); ctx.stroke();
-  if (isGlass) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; circle(ctx, x, y, R + rim); ctx.stroke(); }
-  ctx.restore();
-  return { R: R + rim, saucer: spec.saucer, handleAngle };
 }
 
-// A large cup in the middle of the table with the wordmark as latte art.
-// tools/steam.mjs renders this still and adds the steam on top.
-function cupWordmark(ctx, P, r, noise) {
-  table(ctx, P, r, noise);
-  const x = W / 2, y = H / 2 + 20;
-  const base = mix(roastColor(P.roast), P.accent, .1);
-  for (let i = 0; i < 9; i++) {
-    const a = r() * Math.PI * 2, d = 1150 + r() * 500;
-    const bx = x + Math.cos(a) * d * 1.4, by = y + Math.sin(a) * d * .65;
-    if (bx < 120 || bx > W - 120 || by < 120 || by > H - 120) continue;
-    bean(ctx, P, bx, by, 110 + r() * 20, r() * 6.3, base, r() < .6, P.light ? .3 : .55, P.roast > .66);
-  }
-  const saved = { vessel: CURRENT.vessel, art: CURRENT.art };
-  CURRENT.vessel = 'hero'; CURRENT.art = 'wordmark';
-  const res = cup(ctx, P, x, y, r, noise);
-  Object.assign(CURRENT, saved);
-  // The saucer rim is too narrow for a spoon, so it lies on the table.
-  spoon(ctx, P, x + res.saucer + 230, y + 300, -1.95, 560);
-  vignette(ctx, P, P.light ? .16 : .45);
-  grain(ctx, P.index * 59, .05);
-}
-
-function latteArt(ctx, P, r, noise) {
-  table(ctx, P, r, noise);
-  const x = W * .6, y = H * .52;
-  // Beans scattered on the table, behind the cup
-  const base = mix(roastColor(P.roast), P.accent, .1);
-  for (let i = 0; i < 7; i++) {
-    const a = r() * Math.PI * 2, d = 900 + r() * 500;
-    const bx = x + Math.cos(a) * d * 1.3, by = y + Math.sin(a) * d * .7;
-    if (bx < 120 || bx > W - 120 || by < 120 || by > H - 120) continue;
-    bean(ctx, P, bx, by, 110 + r() * 20, r() * 6.3, base, r() < .6, P.light ? .3 : .55, P.roast > .66);
-  }
-  const res = cup(ctx, P, x, y, r, noise);
-  // Props on the saucer or the table
-  const rim = res.saucer ? res.saucer * .82 : res.R + 180;
-  const pa = res.handleAngle + (res.saucer ? 1.2 : 1.9);
-  if (CURRENT.art === 'lemon') lemonWheel(ctx, P, x + Math.cos(pa) * rim, y + Math.sin(pa) * rim, 110, r());
-  else if (CURRENT.art === 'cinnamon') { cinnamonStick(ctx, P, x - res.R - 380, y + 260, 520, -.5); starAnise(ctx, P, x - res.R - 180, y + 470, 70); }
-  else if (CURRENT.art === 'chai') starAnise(ctx, P, x + Math.cos(pa) * rim, y + Math.sin(pa) * rim, 64);
-  else if (res.saucer) spoon(ctx, P, x + Math.cos(pa) * rim, y + Math.sin(pa) * rim, pa + Math.PI / 2 + .3, res.saucer * .7);
-  if (!res.saucer && !['cinnamon'].includes(CURRENT.art)) {
-    sugarCube(ctx, P, x - res.R - 300, y + 380, 150, .3);
-    sugarCube(ctx, P, x - res.R - 120, y + 500, 150, -.2);
-  }
-  vignette(ctx, P, P.light ? .16 : .45);
-  grain(ctx, P.index * 23, .05);
+// The layers of the recipe as a strip from the bottom (left) to the top
+// (right), with soft blends. tools/photo.html colors the side of a drink in
+// a glass with it.
+function layers(ctx, P) {
+  const list = CURRENT.layers.filter(([n]) => n !== 'ice' && n !== 'lemon');
+  const total = list.reduce((a, [, p]) => a + p, 0);
+  const g = ctx.createLinearGradient(0, 0, 3840, 0);
+  let acc = 0;
+  list.forEach(([name, parts], i) => {
+    const a = acc / total, b = (acc + parts) / total, soft = .03;
+    acc += parts;
+    g.addColorStop(clamp(a + (i ? soft : 0), 0, 1), ing(P, name));
+    g.addColorStop(clamp(b - (i < list.length - 1 ? soft : 0), 0, 1), ing(P, name));
+  });
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 3840, 3840);
 }
 
 // ---------- recipe ----------
@@ -1414,7 +945,7 @@ function recipe(ctx, P, r, noise) {
 
 // ---------- entry point ----------
 
-const KINDS = { wordmark, 'latte-art': latteArt, recipe, crema, beans, 'cup-wordmark': cupWordmark };
+const KINDS = { recipe, surface, layers };
 
 window.renderImage = async (theme, kind, width, height, mime = 'image/png', quality = .92) => {
   await document.fonts.load(`40px ${MONO}`);

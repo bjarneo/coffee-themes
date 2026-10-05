@@ -10,9 +10,9 @@
 //   chroma  chroma of the 6 ANSI hues
 //   warm    0 to 1. Pulls the cool ANSI hues to the warm side and lowers their chroma.
 //   roast   0 to 1. Color of the beans and the coffee in the backgrounds.
-//   art     top view of the drink in the latte art background. tools/render.html
-//           has one function for each value.
-//   vessel  cup or glass of the drink
+//   art     top of the drink: latte art, crema, cream, ice or cocoa dust.
+//           tools/render.html draws it, and tools/photo.html renders the drink with it.
+//   vessel  cup or glass of the drink. tools/photo.html has one shape for each value.
 //   layers  recipe from the bottom to the top, as [ingredient, parts]
 //   notes   brew facts for the recipe background
 //   origin  country or region of a regional drink

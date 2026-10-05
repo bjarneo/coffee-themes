@@ -1,0 +1,1150 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Photo renderer</title>
+<style>html,body{margin:0;background:#000}</style>
+</head>
+<body>
+<script>
+// Photographic backgrounds. The page ray-marches 3D scenes on the GPU with
+// WebGL2: soft shadows, ambient occlusion, glossy reflections and depth of
+// field, then a filmic tone curve and grain. tools/photo.mjs calls setup()
+// once and renderPhoto() for each image. Chromium needs --use-angle=vulkan
+// to use the GPU; without it, SwiftShader renders on the CPU and is very slow.
+//
+// Each image adds up many samples. Every sample moves the pixel a little for
+// anti-aliasing and moves the camera inside the lens for depth of field. The
+// frame renders in tiles, so no single draw call runs long on the GPU.
+//
+// Scenes:
+//   beans     roasted beans on a table, from a low angle
+//   latte     the drink of the theme in its cup or glass, from above at an angle
+//   crema     a close-up of cream that swirls into coffee
+//   wordmark  the Omarchy wordmark as glazed ceramic letters on a table
+//   top       a cup with the wordmark as latte art, straight from above
+
+const canvas = document.createElement('canvas');
+const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: false });
+let contextLosses = 0;
+canvas.addEventListener('webglcontextlost', e => { contextLosses++; e.preventDefault(); });
+window.diagnostics = () => ({ contextLosses, lost: gl.isContextLost(), error: gl.getError() });
+gl.getExtension('EXT_color_buffer_float');
+const floatLinear = !!gl.getExtension('OES_texture_float_linear');
+let logoTexture = null, logoInfo = null;
+const programs = {};
+
+// ---------- colors ----------
+
+function rgb(hex) { return [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)); }
+function lin(hex) { return rgb(hex).map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); }
+function mix(a, b, t) { const pa = rgb(a), pb = rgb(b); return '#' + pa.map((v, i) => Math.round(v * (1 - t) + pb[i] * t).toString(16).padStart(2, '0')).join(''); }
+const ROAST = ['#a8834f', '#9c6a38', '#83502b', '#68391f', '#4c2a17', '#36200f', '#22150c'];
+function roastColor(t) {
+  t = Math.max(0, Math.min(1, t)) * (ROAST.length - 1);
+  const i = Math.min(ROAST.length - 2, Math.floor(t));
+  return mix(ROAST[i], ROAST[i + 1], t - i);
+}
+
+function rng(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ---------- the wordmark as a distance field ----------
+
+// The letters become a signed distance field in logo units (the SVG is
+// 1215 x 285). The shader extrudes it into 3D letters.
+window.setup = paths => {
+  const SCALE = 3, PAD = 64, w = 1215 * SCALE + PAD * 2, h = 285 * SCALE + PAD * 2;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const cx = c.getContext('2d');
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, w, h);
+  cx.translate(PAD, PAD); cx.scale(SCALE, SCALE); cx.fillStyle = '#fff';
+  paths.forEach(p => cx.fill(new Path2D(p.d), p.evenodd ? 'evenodd' : 'nonzero'));
+  const img = cx.getImageData(0, 0, w, h).data;
+  const inside = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) inside[i] = img[i * 4] > 127 ? 1 : 0;
+  const dOut = edt(inside, w, h, 0), dIn = edt(inside, w, h, 1);
+  const field = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) field[i] = (Math.sqrt(dOut[i]) - Math.sqrt(dIn[i])) / SCALE;
+  logoTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, logoTexture);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, w, h, 0, gl.RED, gl.FLOAT, field);
+  const filter = floatLinear ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  logoInfo = { w, h, scale: SCALE, pad: PAD };
+  return true;
+};
+
+// Squared Euclidean distance to the nearest pixel whose value differs from
+// `of`, by the Felzenszwalb and Huttenlocher method.
+function edt(mask, w, h, of) {
+  const INF = 1e20, d = new Float64Array(w * h);
+  for (let i = 0; i < w * h; i++) d[i] = mask[i] === of ? INF : 0;
+  const n = Math.max(w, h), f = new Float64Array(n), out = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  const pass = (len, get, set) => {
+    for (let q = 0; q < len; q++) f[q] = get(q);
+    let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+    for (let q = 1; q < len; q++) {
+      let s;
+      do { const p = v[k]; s = ((f[q] + q * q) - (f[p] + p * p)) / (2 * q - 2 * p); if (s <= z[k]) k--; else break; } while (k >= 0);
+      k++; v[k] = q; z[k] = s; z[k + 1] = INF;
+    }
+    k = 0;
+    for (let q = 0; q < len; q++) { while (z[k + 1] < q) k++; const p = v[k]; out[q] = (q - p) * (q - p) + f[p]; }
+    for (let q = 0; q < len; q++) set(q, out[q]);
+  };
+  for (let x = 0; x < w; x++) pass(h, y => d[y * w + x], (y, val) => { d[y * w + x] = val; });
+  for (let y = 0; y < h; y++) pass(w, x => d[y * w + x], (x, val) => { d[y * w + x] = val; });
+  return d;
+}
+
+// ---------- shaders ----------
+
+const VERT = `#version 300 es
+void main() { vec2 p = vec2(gl_VertexID & 1, gl_VertexID >> 1) * 4.0 - 1.0; gl_Position = vec4(p, 0.0, 1.0); }`;
+
+const COMMON = `#version 300 es
+precision highp float;
+precision highp sampler2D;
+out vec4 outColor;
+uniform vec2 uRes;
+uniform vec2 uJitter;
+uniform vec2 uLens;
+uniform float uSeed;
+uniform vec3 uCamPos, uCamTarget;
+uniform float uFocal, uAperture, uFocus;
+uniform vec3 uKeyDir, uKeyCol, uFillCol, uRimDir, uRimCol;
+uniform float uDay, uSoft;
+uniform vec3 cBg, cDark, cFg, cAccent, cSecond, cGlaze, cTableA, cTableB, cBean, cCoffee, cCrema, cMilk;
+uniform vec3 cBokeh[6];
+uniform float uRoast, uTable, uVessel, uArtKind, uIndex;
+uniform sampler2D uArt;
+uniform sampler2D uLayers;
+uniform sampler2D uLogo;
+uniform vec4 uLogoInfo;
+uniform vec4 uProps[12];
+uniform int uPropCount;
+
+const float PI = 3.14159265;
+
+float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+vec2 hash22(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
+float hash13(vec3 p3) { p3 = fract(p3 * .1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
+float noise2(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash12(i), hash12(i + vec2(1, 0)), u.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), u.x), u.y); }
+float noise3(vec3 p) { vec3 i = floor(p), f = fract(p); vec3 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash13(i), hash13(i + vec3(1, 0, 0)), u.x), mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), u.x), u.y),
+             mix(mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), u.x), mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), u.x), u.y), u.z); }
+float fbm2(vec2 p) { float s = 0.0, a = .5; for (int i = 0; i < 6; i++) { s += a * noise2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; } return s; }
+// fbm2 on a grid that turns at each octave, so its shapes do not follow the axes.
+float fbmr(vec2 p) { float s = 0.0, a = .5; mat2 m = mat2(.81, -.59, .59, .81); for (int i = 0; i < 5; i++) { s += a * noise2(p); p = m * p * 2.03 + vec2(1.7, 9.2); a *= .5; } return s; }
+float fbm3(vec3 p) { float s = 0.0, a = .5; for (int i = 0; i < 4; i++) { s += a * noise3(p); p = p * 2.07 + vec3(1.7, 9.2, 3.1); a *= .5; } return s; }
+
+float smin(float a, float b, float k) { float h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k * .25; }
+float smax(float a, float b, float k) { return -smin(-a, -b, k); }
+mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+float sdEllipsoid(vec3 p, vec3 r) { float k0 = length(p / r); float k1 = length(p / (r * r)); return k0 * (k0 - 1.0) / k1; }
+float sdCylinder(vec3 p, float h, float r) { vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h); return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)); }
+float sdTorus(vec3 p, vec2 t) { vec2 q = vec2(length(p.xz) - t.x, p.y); return length(q) - t.y; }
+float sdRoundBox(vec3 p, vec3 b, float r) { vec3 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r; }
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r) { vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h) - r; }
+float sdTrapezoid(vec2 p, float r1, float r2, float he) {
+  vec2 k1 = vec2(r2, he), k2 = vec2(r2 - r1, 2.0 * he);
+  p.x = abs(p.x);
+  vec2 ca = vec2(p.x - min(p.x, (p.y < 0.0) ? r1 : r2), abs(p.y) - he);
+  vec2 cb = p - k1 + k2 * clamp(dot(k1 - p, k2) / dot(k2, k2), 0.0, 1.0);
+  float s = (cb.x < 0.0 && ca.y < 0.0) ? -1.0 : 1.0;
+  return s * sqrt(min(dot(ca, ca), dot(cb, cb)));
+}
+
+// A roasted bean in its own frame: the long axis is x, the domed back is
+// up, and the flat face with the crease is down.
+float sdBean(vec3 p) {
+  float d = sdEllipsoid(p, vec3(.58, .29, .38));
+  d = smax(d, -p.y - .14, .07);
+  float crease = length(vec2(p.z - .06 * sin(p.x * 5.5), (p.y + .14) * 1.25)) - .058;
+  return smax(d, -crease, .035);
+}
+
+vec3 env(vec3 d);
+
+// Soft disc lights far behind the subject, already out of focus.
+vec3 bokeh(vec3 d) {
+  vec3 col = vec3(0.0);
+  float az = atan(d.x, -d.z), el = asin(clamp(d.y, -1.0, 1.0));
+  vec2 g = vec2(az, el) * vec2(11.0, 14.0);
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 c = floor(g) + vec2(i, j);
+    float h = hash12(c + uIndex * 3.1);
+    if (h < .62) continue;
+    vec2 o = hash22(c + 7.7) * .8 + .1;
+    float r = .22 + hash12(c + 3.3) * .32;
+    float dist = length(g - c - o);
+    float disc = smoothstep(r, r * .82, dist) * (.75 + .25 * smoothstep(r * .5, r, dist));
+    vec3 tint = cBokeh[int(hash12(c + 1.9) * 5.99)];
+    col += disc * tint * (.5 + 1.3 * hash12(c + 5.5));
+  }
+  return col * smoothstep(-.05, .2, d.y);
+}
+
+vec3 env(vec3 d) {
+  vec3 key = normalize(uKeyDir);
+  if (uDay > .5) {
+    vec3 col = mix(vec3(.62, .60, .58), vec3(1.0, .99, .97), smoothstep(-.4, .7, d.y)) * 1.15;
+    col = mix(col, col * cBg * 1.25, .35);
+    float win = smoothstep(.72, .93, dot(d, key));
+    return col + win * vec3(3.4, 3.35, 3.2);
+  }
+  vec3 col = cDark * .18 * (.55 + .45 * d.y);
+  col += smoothstep(.80, .97, dot(d, key)) * uKeyCol * 2.6;
+  col += bokeh(d) * .45;
+  return col;
+}
+
+float ggx(vec3 n, vec3 h, float r) { float a = r * r, a2 = a * a; float nh = max(dot(n, h), 0.0); float d = nh * nh * (a2 - 1.0) + 1.0; return a2 / (PI * d * d); }
+float schlick(float c, float f0) { return f0 + (1.0 - f0) * pow(1.0 - c, 5.0); }
+`;
+
+// The table under every scene. kind: 0 walnut, 1 slate, 2 marble, 3 linen, 4 oak.
+const TABLE = `
+vec3 tableColor(vec3 p, out float rough, out vec3 bump) {
+  rough = .55; bump = vec3(0.0);
+  int kind = int(uTable + .5);
+  if (kind == 0 || kind == 4) {
+    float plank = floor(p.z / 6.0);
+    vec2 q = vec2(p.x * .035 + plank * 3.7, p.z * .9 + plank * 1.3);
+    float grain = fbm2(vec2(q.x * 4.0, q.y * .25));
+    float rings = sin((grain * 9.0 + p.z * .55 + plank) * 2.2) * .5 + .5;
+    float fine = noise2(vec2(p.x * 3.0, p.z * 40.0));
+    float t = clamp(rings * .55 + fine * .25 + grain * .35, 0.0, 1.0);
+    float seam = smoothstep(.04, 0.0, abs(fract(p.z / 6.0) - .0)) + smoothstep(.04, 0.0, abs(fract(p.z / 6.0) - 1.0));
+    rough = mix(.38, .62, fine);
+    bump = vec3(0.0, 0.0, (fine - .5) * .05);
+    return mix(cTableA, cTableB, t) * (1.0 - seam * .6);
+  }
+  if (kind == 1) {
+    float n = fbm2(p.xz * .35);
+    rough = .7;
+    bump = vec3((noise2(p.xz * 6.0) - .5) * .06, 0.0, (noise2(p.xz * 6.0 + 9.0) - .5) * .06);
+    return mix(cTableA, cTableB, n);
+  }
+  if (kind == 2) {
+    vec2 q = p.xz * .09;
+    vec2 w = vec2(fbm2(q * 1.3), fbm2(q * 1.3 + 7.1)) * 2.2;
+    float v = abs(fbm2(q * 1.7 + w) - .5);
+    float vein = exp(-v * 40.0) * .65 + exp(-v * 11.0) * .2;
+    rough = .22;
+    return mix(cTableA, cTableB, vein);
+  }
+  float weave = (sin(p.x * 26.0) * .5 + .5) * (sin(p.z * 26.0) * .5 + .5);
+  float slub = noise2(vec2(p.x * 2.0, p.z * 30.0)) * .5 + noise2(vec2(p.x * 30.0, p.z * 2.0)) * .5;
+  rough = .9;
+  bump = vec3((weave - .5) * .05, 0.0, (slub - .5) * .05);
+  return mix(cTableA, cTableB, clamp(weave * .35 + slub * .5, 0.0, 1.0));
+}
+`;
+
+// The march, the normal, shadows and ambient occlusion, shared by the scenes.
+// Each scene defines vec2 map(vec3 p) and vec3 shade(...).
+const MARCH = `
+vec2 march(vec3 ro, vec3 rd, float tmax) {
+  float t = .02, id = -1.0;
+  for (int i = 0; i < 180; i++) {
+    vec2 h = map(ro + rd * t);
+    if (h.x < .0006 * t) { id = h.y; break; }
+    t += h.x * .9;
+    if (t > tmax) break;
+  }
+  return vec2(t, id);
+}
+vec3 calcNormal(vec3 p, float t) {
+  float e = .0005 * max(t, 1.0);
+  vec2 k = vec2(1, -1);
+  return normalize(k.xyy * map(p + k.xyy * e).x + k.yyx * map(p + k.yyx * e).x + k.yxy * map(p + k.yxy * e).x + k.xxx * map(p + k.xxx * e).x);
+}
+float softShadow(vec3 ro, vec3 rd, float k) {
+  float res = 1.0, t = .02, ph = 1e10;
+  for (int i = 0; i < 56; i++) {
+    float h = map(ro + rd * t).x;
+    if (h < .0005) return 0.0;
+    float y = h * h / (2.0 * ph), d = sqrt(max(h * h - y * y, 0.0));
+    res = min(res, k * d / max(0.0, t - y));
+    if (res < .02) return 0.0;
+    ph = h; t += clamp(h, .02, .6);
+    if (t > 25.0) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+float ambientOcclusion(vec3 p, vec3 n) {
+  float occ = 0.0, sca = 1.0;
+  for (int i = 0; i < 5; i++) { float h = .02 + .11 * float(i); occ += (h - map(p + h * n).x) * sca; sca *= .8; }
+  return clamp(1.0 - 2.2 * occ, 0.0, 1.0);
+}
+// Light on a surface: a soft key light, a rim light, the room and reflections.
+// Daylight comes through a window, so the frame casts soft bars of shadow.
+float windowPanes(vec3 p, vec3 key) {
+  vec3 t1 = normalize(cross(key, vec3(0.0, 0.0, 1.0))), t2 = cross(key, t1);
+  vec2 lc = vec2(dot(p, t1), dot(p, t2)) / 9.0 - vec2(.15, .1);
+  // A window of 2 by 2 panes: thin soft bars in the middle and a soft frame
+  vec2 a = abs(lc);
+  float inside = (1.0 - smoothstep(.95, 1.15, a.x)) * (1.0 - smoothstep(1.2, 1.45, a.y));
+  float bars = max(1.0 - smoothstep(.02, .07, a.x), 1.0 - smoothstep(.02, .07, a.y));
+  return mix(.62, 1.0, inside * (1.0 - bars * .8));
+}
+vec3 light(vec3 p, vec3 n, vec3 rd, vec3 albedo, float rough, float f0, float metal, float sss) {
+  vec3 key = normalize(uKeyDir), rim = normalize(uRimDir), v = -rd;
+  float sh = softShadow(p + n * .004, key, uSoft);
+  if (uDay > .5) sh *= windowPanes(p, key);
+  float ao = ambientOcclusion(p, n);
+  float nl = dot(n, key);
+  float diff = max(nl, 0.0) * sh;
+  float wrap = max((nl + sss) / (1.0 + sss), 0.0) * mix(1.0, sh, .7);
+  vec3 h = normalize(key + v);
+  float nv = max(dot(n, v), 1e-3);
+  float fr = schlick(nv, f0);
+  vec3 spec = vec3(ggx(n, h, rough) * schlick(max(dot(h, v), 0.0), f0)) * diff;
+  vec3 specCol = mix(vec3(1.0), albedo, metal);
+  float rimL = pow(max(dot(n, rim), 0.0), 2.0) * pow(1.0 - nv, 1.5);
+  vec3 col = albedo * (1.0 - metal) * (uKeyCol * mix(diff, wrap, sss > 0.0 ? 1.0 : 0.0) + uFillCol * ao * (.6 + .4 * n.y));
+  col += specCol * uKeyCol * spec;
+  col += uRimCol * rimL * ao * (.6 + .4 * (1.0 - rough));
+  vec3 refl = env(reflect(rd, n));
+  col += refl * specCol * fr * ao * (1.0 - rough * .85) * mix(.6, 1.0, metal);
+  return col;
+}
+`;
+
+// The camera and the accumulation of one sample.
+const MAIN = `
+void main() {
+  vec3 ro = uCamPos;
+  vec3 ww = normalize(uCamTarget - ro), uu = normalize(cross(ww, vec3(0, 1, 0))), vv = cross(uu, ww);
+  // Each pixel turns the lens pattern by its own random angle, so the blur
+  // becomes fine grain instead of stacked copies of each edge.
+  float spin = hash12(gl_FragCoord.xy * .713 + 3.1) * 6.2831;
+  vec2 lens = rot(spin) * uLens;
+  vec2 jit = fract(uJitter + hash22(gl_FragCoord.xy * .291)) - .5;
+  vec2 p = (2.0 * (gl_FragCoord.xy + jit) - uRes) / uRes.y;
+  vec3 rd = normalize(p.x * uu + p.y * vv + uFocal * ww);
+  vec3 fp = ro + rd * (uFocus / dot(rd, ww));
+  ro += (uu * lens.x + vv * lens.y) * uAperture;
+  rd = normalize(fp - ro);
+  vec3 col = render(ro, rd);
+  outColor = vec4(max(col, 0.0), 1.0);
+}`;
+
+// ---------- scenes ----------
+
+const SCENES = {};
+
+// Props in a scene: beans, a spoon, whipped cream and the rest. Each scene
+// passes the props it needs in uProps.
+const PROPS = `
+uniform vec3 uCupPos;
+uniform vec4 uCup;       // bottom radius, top radius, height, wall
+uniform vec4 uCupFlags;  // handle, saucer, glass, liquid level 0-1
+uniform vec4 uCupMore;   // saucer radius, handle angle, material, stem height
+uniform vec4 uSpoon;     // x, z, angle, on (1) or off (0)
+uniform float uArtBias;
+float gId2;
+float beanAt(vec3 p, vec4 b) {
+  vec3 lp = p - vec3(b.x, 0.0, b.y);
+  lp.y -= b.w > 0.0 ? .15 : .30;
+  lp.xz = rot(b.z) * lp.xz;
+  lp.y *= b.w > 0.0 ? 1.0 : -1.0;
+  return sdBean(lp);
+}
+float sdUnevenCapsule(vec2 p, float r1, float r2, float h) {
+  p.x = abs(p.x);
+  float b = (r1 - r2) / h, a = sqrt(1.0 - b * b), k = dot(p, vec2(-b, a));
+  if (k < 0.0) return length(p) - r1;
+  if (k > a * h) return length(p - vec2(0.0, h)) - r2;
+  return dot(p, vec2(a, b)) - r1;
+}
+float sdSpoon(vec3 p) {
+  vec3 q = p - vec3(uSpoon.x, 0.0, uSpoon.y);
+  q.xz = rot(uSpoon.z) * q.xz;
+  q.y -= .12;
+  float bowl = sdEllipsoid(q, vec3(.8, .16, .52));
+  bowl = smax(bowl, -sdEllipsoid(q - vec3(0.0, .13, 0.0), vec3(.73, .14, .46)), .02);
+  float y = q.y - .02 - .02 * max(q.x - .7, 0.0);
+  float d2 = sdUnevenCapsule(vec2(q.z, q.x - .7), .07, .17, 3.7);
+  vec2 w = vec2(d2, abs(y) - .025);
+  float handle = min(max(w.x, w.y), 0.0) + length(max(w, 0.0)) - .012;
+  return smin(bowl, handle, .08);
+}
+`;
+
+// Cups and glasses: a turned profile with a wall, an optional handle and
+// saucer, and the drink inside with its surface at the given level.
+const VESSEL = `
+uniform float uBulge;
+float profileBulge(float y) { return uBulge * sin(PI * clamp(y / uCup.z, 0.0, 1.0)); }
+float sdOuter(vec3 q) {
+  float y = q.y;
+  vec2 q2 = vec2(length(q.xz) - profileBulge(y), y - uCup.z * .5);
+  return sdTrapezoid(q2, uCup.x, uCup.y, uCup.z * .5) - .05;
+}
+float sdInner(vec3 q) {
+  float y = q.y;
+  vec2 q2 = vec2(length(q.xz) - profileBulge(y), y - uCup.z * .5 - uCup.w);
+  return sdTrapezoid(q2, uCup.x - uCup.w, uCup.y - uCup.w, uCup.z * .5);
+}
+float sdShell(vec3 q) {
+  float d = smax(sdOuter(q), -sdInner(q), .04);
+  if (uCupFlags.x > .5) {
+    vec3 h = q - vec3(0.0, uCup.z * .55, 0.0);
+    h.xz = rot(uCupMore.y) * h.xz;
+    h -= vec3(uCup.y * .95 + .55, 0.0, 0.0);
+    float t = sdTorus(h.xzy * vec3(1.0, 1.0, 1.0), vec2(uCup.z * .26, .17 + uCup.z * .015));
+    t = max(t, -sdOuter(q) - .02);
+    d = smin(d, t, .12);
+  }
+  return d;
+}
+float liquidTop() { return uCup.w + (uCup.z - uCup.w) * uCupFlags.w; }
+float sdLiquid(vec3 q) { return max(sdInner(q) + .01, q.y - liquidTop()); }
+float sdSaucer(vec3 q) {
+  float R = uCupMore.x;
+  float plate = sdCylinder(q - vec3(0.0, .09, 0.0), .09, R - .25);
+  float rim = sdTorus(q - vec3(0.0, .3, 0.0), vec2(R - .32, .26));
+  float d = smin(plate, rim, .5);
+  return smax(d, -sdCylinder(q - vec3(0.0, .42, 0.0), .2, R - .62), .25);
+}
+// The base of the cup: the saucer top, or the table.
+float baseY() { return uCupFlags.y > .5 ? .18 : 0.0; }
+`;
+
+SCENES.beans = `
+vec3 beanCell(vec2 c, float layer, out mat2 R, out float flip, out float tone, out float tilt) {
+  vec2 h = hash22(c + layer * 31.7 + uIndex * 1.3);
+  R = rot(hash12(c * 4.1 + layer) * 6.2831);
+  flip = hash12(c * 3.1 + layer + 2.0) < .75 ? -1.0 : 1.0;
+  tone = hash12(c * 5.7 + layer);
+  tilt = (hash12(c * 9.3 + layer) - .5) * .5;
+  return vec3((c.x + .5 + (h.x - .5) * .7) * 1.1, 0.0, (c.y + .5 + (h.y - .5) * .7) * 1.1);
+}
+float gTone;
+// Two layers of beans. The top layer is sparse and rests on the first.
+float beanField(vec3 p) {
+  float best = 1e9;
+  for (int layer = 0; layer < 2; layer++) {
+    float off = float(layer) * .55;
+    vec2 q = (p.xz + off) / 1.1;
+    vec2 base = floor(q) - 1.0;
+    for (int j = 0; j < 3; j++) for (int i = 0; i < 3; i++) {
+      vec2 c = base + vec2(i, j);
+      if (layer == 1 && hash12(c * 2.3 + 11.0) > .45) continue;
+      mat2 R; float flip, t, tilt;
+      vec3 o = beanCell(c, float(layer), R, flip, t, tilt);
+      o.xz -= off;
+      vec3 lp = p - o;
+      float s = .88 + .24 * hash12(c * 1.7 + float(layer) * 4.0);
+      lp.y -= ((flip < 0.0 ? .15 : .30) + float(layer) * .34) * s;
+      lp.xz = R * lp.xz;
+      lp.xy = rot(tilt) * lp.xy;
+      lp.y *= flip;
+      float d = sdBean(lp / s) * s;
+      if (d < best) { best = d; gTone = t; }
+    }
+  }
+  return best;
+}
+vec2 map(vec3 p) {
+  vec2 res = vec2(p.y, 1.0);
+  // Above the tallest bean, a plane at y = 1.05 stands in for the beans. It
+  // stays close to the true distance, so soft shadows show no bands.
+  if (p.y < 1.4) { float b = beanField(p); if (b < res.x) res = vec2(b, 4.0); }
+  else res.x = min(res.x, p.y - 1.05);
+  return res;
+}
+${MARCH}
+vec3 beanShade(vec3 pos, vec3 n, vec3 rd, float tone) {
+  vec3 bump = vec3(fbm3(pos * 30.0), fbm3(pos * 30.0 + 4.0), fbm3(pos * 30.0 + 8.0)) - .5;
+  n = normalize(n + bump * .5);
+  float mottle = fbm3(pos * 6.0);
+  vec3 albedo = cBean * mix(.45, .95, tone) * (.72 + .45 * mottle);
+  albedo = mix(albedo, albedo * vec3(1.12, .92, .82), hash12(floor(pos.xz * .9)) * .35);
+  albedo = mix(albedo, vec3(dot(albedo, vec3(.3, .5, .2))), .15);
+  float oil = smoothstep(.62, .92, uRoast);
+  float rough = mix(.72, .3, oil) + (noise3(pos * 40.0) - .5) * .12;
+  return light(pos, n, rd, albedo, rough, .035, 0.0, 0.0);
+}
+vec3 render(vec3 ro, vec3 rd) {
+  vec2 h = march(ro, rd, 90.0);
+  if (h.y < 0.0) return env(rd);
+  vec3 pos = ro + rd * h.x, n = calcNormal(pos, h.x);
+  if (h.y > 3.5) { map(pos); return beanShade(pos, n, rd, gTone); }
+  float rough; vec3 bump;
+  vec3 albedo = tableColor(pos, rough, bump);
+  return light(pos, normalize(n + bump), rd, albedo, rough, .035, 0.0, 0.0);
+}
+${MAIN}`;
+
+// The drink in its cup, with props. Also used straight from above for the
+// top scene, which is the still under the steam video.
+SCENES.latte = `
+${PROPS}
+${VESSEL}
+// Opaque parts. Glass and ice render in a second pass.
+vec2 map(vec3 p) {
+  vec2 res = vec2(p.y, 1.0);
+  vec3 q = p - uCupPos;
+  float by = baseY();
+  if (uCupFlags.y > .5) { float s = sdSaucer(q); if (s < res.x) res = vec2(s, 2.5); }
+  vec3 cq = q - vec3(0.0, by + uCupMore.w, 0.0);
+  if (uCupFlags.z < .5) { float s = sdShell(cq); if (s < res.x) res = vec2(s, 2.0); }
+
+  float l = sdLiquid(cq); if (l < res.x) res = vec2(l, 3.0);
+  float lt = by + uCupMore.w + liquidTop();
+  int kind = int(uArtKind + .5);
+  if (kind == 1 || kind == 7) {
+    // Whipped cream: stacked rings and a peak, with a twist
+    vec3 w = cq - vec3(0.0, liquidTop(), 0.0);
+    float ang = atan(w.z, w.x);
+    float sw = .045 * sin(ang * 7.0 + w.y * 9.0);
+    float rr = (uCup.y - uCup.w) * (kind == 7 ? .9 : .78);
+    float d = sdTorus(w - vec3(0.0, .12, 0.0), vec2(rr * .62, rr * .34));
+    d = smin(d, sdTorus(w - vec3(0.0, rr * .52, 0.0), vec2(rr * .38, rr * .3)), .25);
+    d = smin(d, sdEllipsoid(w - vec3(0.0, rr * .85, 0.0), vec3(rr * .3, rr * .42, rr * .3)), .3);
+    d = max(d, -w.y);
+    d += sw - .02 * fbm3(w * 6.0);
+    if (d < res.x) res = vec2(d, 6.0);
+  } else if (kind == 3) {
+    vec3 w = cq - vec3(-.2, liquidTop() + .5, .1);
+    float d = length(w) - (uCup.y - uCup.w) * .62 + .14 * fbm3(w * 2.2);
+    if (d < res.x) res = vec2(d, 8.0);
+  } else if (kind == 4) {
+    for (int i = 0; i < 5; i++) {
+      float a = float(i) * 1.26 + .4;
+      vec3 w = cq - vec3(cos(a) * 1.1, liquidTop() + .05, sin(a) * 1.1);
+      w.xz = rot(a * 2.0) * w.xz;
+      float d = sdRoundBox(w, vec3(.42, .3, .42), .1);
+      if (d < res.x) res = vec2(d, 9.0);
+    }
+  }
+  for (int i = 0; i < 12; i++) {
+    if (i >= uPropCount) break;
+    vec4 b = uProps[i];
+    if (b.w > 1.5) {
+      // A cinnamon stick on the table
+      vec3 w = p - vec3(b.x, .28, b.y); w.xz = rot(b.z) * w.xz;
+      float d = sdCapsule(w, vec3(-2.6, 0.0, 0.0), vec3(2.6, 0.0, 0.0), .28);
+      if (d < res.x) res = vec2(d, 11.0);
+    } else if (b.w < -1.5) {
+      // A lemon wheel lying flat
+      vec3 w = p - vec3(b.x, by + .14, b.y);
+      float d = sdCylinder(w, .1, 1.05) - .03;
+      if (d < res.x) res = vec2(d, 10.0);
+    } else {
+      float d = beanAt(p, b);
+      if (d < res.x) res = vec2(d, 4.0);
+    }
+  }
+  if (uSpoon.w > .5) { vec3 sp = p - vec3(0.0, uCupFlags.y > .5 ? .26 : 0.0, 0.0); float d = sdSpoon(sp); if (d < res.x) res = vec2(d, 5.0); }
+  return res;
+}
+// Glass walls and ice cubes. id 1 is glass, id 2 is ice.
+vec2 mapGlass(vec3 p) {
+  vec2 res = vec2(1e9, 0.0);
+  vec3 q = p - uCupPos;
+  vec3 cq = q - vec3(0.0, baseY() + uCupMore.w, 0.0);
+  if (uCupFlags.z > .5) {
+    float d = sdShell(cq);
+    if (uCupMore.w > 0.0) {
+      // The stem and the foot of a stemmed glass
+      float stem = sdCylinder(q - vec3(0.0, baseY() + uCupMore.w * .5, 0.0), uCupMore.w * .5, .2);
+      float foot = sdCylinder(q - vec3(0.0, baseY() + .05, 0.0), .05, max(uCup.x * 1.2, 1.9));
+      d = smin(d, smin(stem, foot, .3), .25);
+    }
+    res = vec2(d, 1.0);
+  }
+  if (int(uArtKind + .5) == 2 || int(uArtKind + .5) == 7) {
+    for (int i = 0; i < 5; i++) {
+      float a = float(i) * 1.3 + .7;
+      float r = (uCup.y - uCup.w) * (.38 + .1 * float(i % 2));
+      vec3 w = cq - vec3(cos(a) * r, liquidTop() + .12, sin(a) * r);
+      w.xz = rot(a * 1.7) * w.xz;
+      w.xy = rot(.3 * sin(a * 3.0)) * w.xy;
+      float d = sdRoundBox(w, vec3(.62, .5, .62), .16);
+      if (d < res.x) res = vec2(d, 2.0);
+    }
+  }
+  return res;
+}
+${MARCH}
+float marchGlass(vec3 ro, vec3 rd, float tmax, out float kind) {
+  float t = .02; kind = 0.0;
+  for (int i = 0; i < 160; i++) {
+    vec2 h = mapGlass(ro + rd * t);
+    if (h.x < .0006 * t) { kind = h.y; return t; }
+    t += h.x * .9;
+    if (t > tmax) break;
+  }
+  return -1.0;
+}
+vec3 glassNormal(vec3 p) {
+  vec2 k = vec2(1, -1); float e = .001;
+  return normalize(k.xyy * mapGlass(p + k.xyy * e).x + k.yyx * mapGlass(p + k.yyx * e).x + k.yxy * mapGlass(p + k.yxy * e).x + k.xxx * mapGlass(p + k.xxx * e).x);
+}
+vec3 srgb2lin(vec3 c) { return pow(c, vec3(2.2)); }
+vec2 artUV(vec3 cq) {
+  float r = uCup.y - uCup.w + profileBulge(liquidTop());
+  vec2 uv = cq.xz / (r * 1.02) * .5 + .5;
+  // The pour wobbles: a little noise bends the edges of the milk.
+  return uv + (vec2(fbm2(cq.xz * 1.8), fbm2(cq.xz * 1.8 + 4.3)) - .5) * .022;
+}
+float artLum(vec3 pos) { return dot(srgb2lin(texture(uArt, artUV(pos - uCupPos), uArtBias).rgb), vec3(.3, .5, .2)); }
+vec3 surfaceAt(vec3 pos) {
+  vec3 cq = pos - uCupPos;
+  float r = uCup.y - uCup.w + profileBulge(liquidTop());
+  vec2 uv = artUV(cq);
+  vec3 c = srgb2lin(texture(uArt, uv, uArtBias).rgb);
+  // A blurred sample gives the tone of the crema without the drawn flecks.
+  vec3 cs = srgb2lin(texture(uArt, uv, uArtBias + 1.2).rgb);
+  float l = dot(c, vec3(.3, .5, .2)), ls = dot(cs, vec3(.3, .5, .2));
+  float milk = smoothstep(.22, .5, l);
+  // Crema: soft tiger flecks along a warped flow, and a fine foam grain.
+  // Black coffee has no crema, so it gets almost no flecks.
+  vec2 q = cq.xz;
+  vec2 flow = q + (vec2(fbmr(q * 1.7), fbmr(q * 1.7 + 5.3)) - .5) * 1.4;
+  float tiger = smoothstep(.5, .8, fbmr(flow * 6.5)) * smoothstep(.04, .12, ls);
+  float grain = noise2(mat2(.45, -.89, .89, .45) * q * 150.0);
+  vec3 crema = mix(cs, vec3(ls) * vec3(1.25, .95, .72), .3) * .84;
+  crema *= (.9 + .2 * fbmr(q * 3.2)) * (1.0 - tiger * .3) * (.97 + .06 * grain);
+  // Milk: microfoam with a faint warm tint
+  vec3 foam = c * vec3(.97, .95, .92) * (.95 + .07 * noise2(mat2(.62, -.78, .78, .62) * q * 40.0));
+  vec3 col = mix(crema, foam, milk);
+  // A brown fringe where milk meets crema, and a darker ring at the wall
+  col *= 1.0 - milk * (1.0 - milk) * .5;
+  float rn = length(cq.xz) / r;
+  return col * mix(1.0, .6, smoothstep(.75, 1.0, rn));
+}
+vec3 shadeOpaque(vec3 pos, vec3 n, vec3 rd, float id) {
+  if (id < 1.5) {
+    float rough; vec3 bump;
+    vec3 albedo = tableColor(pos, rough, bump);
+    return light(pos, normalize(n + bump), rd, albedo, rough, .035, 0.0, 0.0);
+  }
+  if (id < 2.7) {
+    // Glazed ceramic, enamel, clay or wood
+    int m = int(uCupMore.z + .5);
+    vec3 albedo = cGlaze; float rough = .18, f0 = .05;
+    if (m == 1) { albedo = mix(cSecond, vec3(.12, .2, .38), .4); albedo += step(.985, hash13(floor(pos * 22.0))) * .5; }
+    if (m == 2) { albedo = vec3(.42, .16, .07) * (.8 + .3 * fbm3(pos * 6.0)); rough = .75; f0 = .03; }
+    if (m == 3) { albedo = vec3(.36, .2, .09) * (.7 + .5 * sin(length(pos.xz - uCupPos.xz) * 14.0 + fbm3(pos * 3.0) * 4.0) * .5 + .25); rough = .55; f0 = .03; }
+    albedo *= .96 + .08 * fbm3(pos * 3.0);
+    return light(pos, n, rd, albedo, rough + .04 * fbm3(pos * 12.0), f0, 0.0, 0.0);
+  }
+  if (id < 3.5) {
+    // The drink: the art on the surface, glossy where it is coffee, soft where it is foam
+    // The side of the drink, seen through a glass, shows the layers.
+    if (n.y < .7) {
+      vec3 cq = pos - uCupPos;
+      float h = clamp((cq.y - baseY() - uCupMore.w - uCup.w) / max(liquidTop() - uCup.w, .01), 0.0, 1.0);
+      vec3 side = srgb2lin(texture(uLayers, vec2(h, .5)).rgb) * (.9 + .15 * fbm3(pos * 3.0));
+      // Milk scatters the light through the whole glass, so the side away
+      // from the lamp still glows. Coffee lets less light through.
+      float milky = smoothstep(.15, .6, dot(side, vec3(.3, .5, .2)));
+      return light(pos, n, rd, side, .25, .03, 0.0, 1.0) + side * uKeyCol * mix(.06, .3, milky);
+    }
+    vec3 albedo = surfaceAt(pos);
+    float l = dot(albedo, vec3(.3, .5, .2));
+    // The milk stands a little above the crema. The relief follows the art
+    // only, so the flecks of the crema stay flat.
+    float e = .03, la = artLum(pos);
+    float hx = artLum(pos + vec3(e, 0, 0)) - la, hz = artLum(pos + vec3(0, 0, e)) - la;
+    vec3 micro = vec3(noise3(pos * 70.0), 0.0, noise3(pos * 70.0 + 7.0)) - vec3(.5, 0.0, .5);
+    vec3 nn = n;
+    if (n.y > .9) nn = normalize(vec3(-hx * .7, 1.0, -hz * .7) + micro * .08 * smoothstep(.1, .45, l));
+    albedo *= .94 + .12 * noise3(pos * 55.0) * smoothstep(.1, .45, l);
+    float rough = mix(.1, .55, smoothstep(.08, .4, l));
+    return light(pos, nn, rd, albedo, rough, .03, 0.0, 0.0);
+  }
+  if (id < 4.5) {
+    vec3 albedo = cBean * (.6 + .5 * fbm3(pos * 7.0));
+    vec3 bump = vec3(fbm3(pos * 22.0), fbm3(pos * 22.0 + 4.0), fbm3(pos * 22.0 + 8.0)) - .5;
+    return light(pos, normalize(n + bump * .35), rd, albedo, mix(.6, .28, smoothstep(.62, .92, uRoast)), .04, 0.0, 0.0);
+  }
+  if (id < 5.5) return light(pos, n, rd, vec3(.9, .9, .92), .09, .9, 1.0, 0.0);
+  if (id < 6.5) {
+    vec3 cream = int(uArtKind + .5) == 7 ? cCrema * 1.15 : vec3(.92, .89, .84);
+    vec3 albedo = cream * (.94 + .1 * fbm3(pos * 9.0));
+    if (int(uArtKind + .5) == 1) {
+      float s = step(.93, hash13(floor(pos * 28.0)));
+      albedo = mix(albedo, uIndex > 66.5 && uIndex < 67.5 ? vec3(.7, .05, .07) : cCoffee * .6, s);
+    }
+    return light(pos, n, rd, albedo, .55, .03, 0.0, .6);
+  }
+  if (id < 7.7) return light(pos, n, rd, vec3(.9), .05, .06, 0.0, 0.0);
+  if (id < 8.5) return light(pos, n, rd, vec3(.93, .86, .66) * (.9 + .2 * fbm3(pos * 8.0)), .5, .03, 0.0, .5);
+  if (id < 9.5) return light(pos, n, rd, vec3(.95, .82, .5) * (.85 + .3 * fbm3(pos * 10.0)), .45, .03, 0.0, .3);
+  if (id < 10.5) {
+    vec3 w = pos - uCupPos;
+    float a = atan(w.z, w.x);
+    vec3 albedo = mix(vec3(.95, .78, .12), vec3(.98, .94, .7), smoothstep(.8, .95, abs(sin(a * 4.5))));
+    return light(pos, n, rd, albedo, .35, .04, 0.0, .5);
+  }
+  vec3 albedo = vec3(.42, .19, .08) * (.75 + .4 * noise3(pos * vec3(2.0, 30.0, 30.0)));
+  return light(pos, n, rd, albedo, .7, .03, 0.0, 0.0);
+}
+vec3 render(vec3 ro, vec3 rd) {
+  vec2 h = march(ro, rd, 120.0);
+  vec3 col = h.y < 0.0 ? env(rd) : shadeOpaque(ro + rd * h.x, calcNormal(ro + rd * h.x, h.x), rd, h.y);
+  float kind;
+  float tg = marchGlass(ro, rd, h.y < 0.0 ? 120.0 : h.x, kind);
+  if (tg > 0.0) {
+    vec3 pg = ro + rd * tg, ng = glassNormal(pg);
+    float nv = max(dot(ng, -rd), 0.0);
+    float fr = schlick(nv, kind > 1.5 ? .05 : .04);
+    vec3 refl = env(reflect(rd, ng));
+    vec3 key = normalize(uKeyDir);
+    float sp = ggx(ng, normalize(key - rd), .05) * .25;
+    if (kind > 1.5) {
+      // Ice: the drink shows through, a little milky inside, with bright edges
+      float cloud = smoothstep(.45, .8, fbm3(pg * 3.0));
+      vec3 inside = mix(col * 1.15, vec3(.85, .9, .95) * .9, .25 + cloud * .35);
+      col = mix(inside, refl, fr) + uKeyCol * sp + pow(1.0 - nv, 4.0) * .35;
+    } else {
+      float edge = pow(1.0 - nv, 3.0);
+      vec3 through = col * vec3(.93, .95, .96);
+      col = mix(through, refl, clamp(fr + edge * .3, 0.0, uDay > .5 ? .38 : .6)) + uKeyCol * sp * 1.5;
+    }
+  }
+  return col;
+}
+${MAIN}`;
+
+// A close-up of a coffee surface where cream swirls in. The surface is flat,
+// so a ray hits it in one step, and the height only bends the normal.
+SCENES.crema = `
+float swirl(vec2 p, out float ribbon) {
+  // Each drink gets its own pour: the noise moves, and the swirl turns more
+  // or less, in either direction. Night and day share the pour.
+  vec2 o = hash22(vec2(uIndex * 1.7, 4.1)) * 60.0;
+  float turn = (1.9 + hash12(vec2(uIndex, 9.3))) * (hash12(vec2(uIndex, 2.7)) < .5 ? -1.0 : 1.0);
+  vec2 c = vec2(1.5, -2.0);
+  vec2 d = p - c; float r = length(d);
+  float a = turn * exp(-r / 5.0);
+  vec2 b = (c + rot(a) * d) * .18 + o;
+  vec2 q = vec2(fbm2(b), fbm2(b + vec2(5.2, 1.3)));
+  vec2 s = vec2(fbm2(b + 3.2 * q + vec2(1.7, 9.2)), fbm2(b + 3.2 * q + vec2(8.3, 2.8)));
+  ribbon = exp(-abs(s.x - .55) * 40.0);
+  return fbm2(b + 3.2 * s);
+}
+float heightAt(vec2 p) {
+  float rib; float v = swirl(p, rib);
+  vec2 g = p * 9.0; vec2 c = floor(g); vec2 f = fract(g) - hash22(c);
+  float rad = .04 + .12 * hash12(c + 3.0);
+  float bub = smoothstep(rad, rad * .3, length(f)) * step(.88, hash12(c)) * smoothstep(.3, .9, rib + smoothstep(.55, .62, v) * (1.0 - smoothstep(.62, .7, v)));
+  return v * .12 + rib * .04 + bub * .03;
+}
+vec3 render(vec3 ro, vec3 rd) {
+  if (rd.y > -.001) return env(rd);
+  float t = -ro.y / rd.y;
+  vec3 pos = ro + rd * t;
+  float rib; float v = swirl(pos.xz, rib);
+  // At night more of the frame is coffee, so the photo stays dark.
+  float lo = uDay > .5 ? .5 : .57;
+  float t1 = smoothstep(lo, lo + .24, v);
+  vec3 albedo = mix(cCoffee, cCrema, smoothstep(.0, .55, t1));
+  albedo = mix(albedo, cMilk, smoothstep(.55, 1.0, t1));
+  albedo = mix(albedo, cMilk, rib * .6);
+  albedo *= .92 + .16 * noise2(pos.xz * 30.0);
+  float e = .02;
+  float h0 = heightAt(pos.xz), hx = heightAt(pos.xz + vec2(e, 0.0)) - h0, hz = heightAt(pos.xz + vec2(0.0, e)) - h0;
+  vec3 n = normalize(vec3(-hx / e * .5, 1.0, -hz / e * .5));
+  vec3 key = normalize(uKeyDir), v2 = -rd, hh = normalize(key + v2);
+  float nl = max(dot(n, key), 0.0);
+  vec3 col = albedo * (uKeyCol * nl * .7 + uFillCol * .9);
+  float fr = schlick(max(dot(n, v2), 0.0), .025);
+  col += env(reflect(rd, n)) * fr * 1.3;
+  col += uKeyCol * ggx(n, hh, mix(.06, .3, t1)) * schlick(max(dot(hh, v2), 0.0), .025) * nl;
+  return col;
+}
+${MAIN}`;
+
+// The Omarchy wordmark as glazed ceramic letters standing on a table.
+// The Omarchy wordmark spelled in coffee beans on a table, with a few strays.
+SCENES.wordmark = `
+uniform float uLogoK;
+float sdLogo2D(vec2 q) {
+  vec2 px = q * uLogoInfo.z + uLogoInfo.w;
+  vec2 uv = px / uLogoInfo.xy;
+  vec2 o = max(max(-uv, uv - 1.0), 0.0) * uLogoInfo.xy / uLogoInfo.z;
+  return texture(uLogo, clamp(uv, 0.0, 1.0)).r + length(o);
+}
+float gTone;
+float wordBeans(vec3 p) {
+  float best = 1e9;
+  for (int layer = 0; layer < 2; layer++) {
+    float off = float(layer) * .45;
+    vec2 q = (p.xz + off) / .92;
+    vec2 base = floor(q) - 1.0;
+    for (int j = 0; j < 3; j++) for (int i = 0; i < 3; i++) {
+      vec2 c = base + vec2(i, j);
+      vec2 h = hash22(c + float(layer) * 31.7 + 5.0);
+      vec2 center = (c + .5 + (h - .5) * .45) * .92 - off;
+      float inside = sdLogo2D(vec2(center.x * uLogoK + 607.5, center.y * uLogoK + 142.5));
+      if (layer == 0 && inside > -5.0 && hash12(c * 5.3) > .012) continue;
+      if (layer == 1 && (inside > -12.0 || hash12(c * 2.3 + 9.0) > .55)) continue;
+      float flip = hash12(c * 3.1 + float(layer) + 2.0) < .75 ? -1.0 : 1.0;
+      vec3 lp = p - vec3(center.x, 0.0, center.y);
+      lp.y -= (flip < 0.0 ? .15 : .30) + float(layer) * .34;
+      lp.xz = rot(hash12(c * 4.1 + float(layer)) * 6.2831) * lp.xz;
+      lp.xy = rot((hash12(c * 9.3) - .5) * .4) * lp.xy;
+      lp.y *= flip;
+      float s = .9 + .2 * hash12(c * 1.7);
+      float d = sdBean(lp / s) * s;
+      if (d < best) { best = d; gTone = hash12(c * 5.7 + float(layer)); }
+    }
+  }
+  return best;
+}
+vec2 map(vec3 p) {
+  vec2 res = vec2(p.y, 1.0);
+  if (p.y < 1.4) { float b = wordBeans(p); if (b < res.x) res = vec2(b, 4.0); }
+  else res.x = min(res.x, p.y - 1.05);
+  return res;
+}
+${MARCH}
+vec3 render(vec3 ro, vec3 rd) {
+  vec2 h = march(ro, rd, 140.0);
+  if (h.y < 0.0) return env(rd);
+  vec3 pos = ro + rd * h.x, n = calcNormal(pos, h.x);
+  if (h.y > 3.5) {
+    map(pos);
+    vec3 bump = vec3(fbm3(pos * 30.0), fbm3(pos * 30.0 + 4.0), fbm3(pos * 30.0 + 8.0)) - .5;
+    vec3 albedo = cBean * mix(.45, .95, gTone) * (.72 + .45 * fbm3(pos * 6.0));
+    albedo = mix(albedo, vec3(dot(albedo, vec3(.3, .5, .2))), .15);
+    return light(pos, normalize(n + bump * .5), rd, albedo, mix(.72, .3, smoothstep(.62, .92, uRoast)), .035, 0.0, 0.0);
+  }
+  float rough; vec3 bump;
+  vec3 albedo = tableColor(pos, rough, bump);
+  return light(pos, normalize(n + bump), rd, albedo, rough, .035, 0.0, 0.0);
+}
+${MAIN}`;
+
+// ---------- the renderer ----------
+
+function program(scene) {
+  // The top scene is the latte scene with another camera.
+  const name = scene === 'top' ? 'latte' : scene;
+  if (programs[name]) return programs[name];
+  const compile = (type, src) => {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(`${name}: ${gl.getShaderInfoLog(s)}`);
+    return s;
+  };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, COMMON + TABLE + SCENES[name]));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(`${name}: ${gl.getProgramInfoLog(prog)}`);
+  const post = gl.createProgram();
+  gl.attachShader(post, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(post, compile(gl.FRAGMENT_SHADER, POST));
+  gl.linkProgram(post);
+  if (!gl.getProgramParameter(post, gl.LINK_STATUS)) throw new Error(`post: ${gl.getProgramInfoLog(post)}`);
+  return (programs[name] = { prog, post });
+}
+
+// Tone curve, color grade, vignette and grain.
+const POST = `#version 300 es
+precision highp float;
+uniform sampler2D uAccum;
+uniform float uSamples, uDay, uSeed;
+uniform vec2 uRes;
+uniform vec3 cShadow, cHigh;
+out vec4 outColor;
+vec3 aces(vec3 x) { return clamp((x * (2.51 * x + .03)) / (x * (2.43 * x + .59) + .14), 0.0, 1.0); }
+float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main() {
+  vec2 uv = gl_FragCoord.xy / uRes;
+  vec3 c = texture(uAccum, uv).rgb / uSamples;
+  c = aces(c * (uDay > .5 ? 1.0 : 1.12));
+  c = pow(c, vec3(1.0 / 2.2));
+  float l = dot(c, vec3(.2126, .7152, .0722));
+  c = mix(vec3(l), c, .9);
+  c = mix(c, c * cShadow * 2.0, (1.0 - smoothstep(0.0, .45, l)) * .22);
+  c = mix(c, c * cHigh * 1.6, smoothstep(.55, 1.0, l) * .12);
+  vec2 q = uv - .5;
+  c *= 1.0 - (uDay > .5 ? .22 : .42) * pow(length(q * vec2(1.0, .8)) * 1.35, 2.4);
+  c += (hash12(gl_FragCoord.xy + uSeed) - .5) * (uDay > .5 ? .01 : .014);
+  outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+
+function texture(w, h, internal, format, type) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return t;
+}
+
+function loadImageTexture(src) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => {
+      const t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      res(t);
+    };
+    im.onerror = rej; im.src = src;
+  });
+}
+
+// Halton numbers spread the samples evenly over the pixel and the lens.
+function halton(i, b) { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; }
+
+window.renderPhoto = async (opts) => {
+  const { scene, width, height, samples } = opts;
+  const P = params(opts);
+  const { prog, post } = program(scene);
+  canvas.width = 16; canvas.height = 16;
+  const accum = texture(width, height, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, accum, 0);
+  gl.viewport(0, 0, width, height);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+
+  let art = null, layerTex = null;
+  if (opts.art) art = await loadImageTexture(opts.art);
+  if (opts.layers) layerTex = await loadImageTexture(opts.layers);
+
+  gl.useProgram(prog);
+  const u = n => gl.getUniformLocation(prog, n);
+  const set3 = (n, v) => gl.uniform3fv(u(n), v);
+  gl.uniform2f(u('uRes'), width, height);
+  set3('uCamPos', P.cam.pos); set3('uCamTarget', P.cam.target);
+  gl.uniform1f(u('uFocal'), P.cam.focal); gl.uniform1f(u('uAperture'), P.cam.aperture); gl.uniform1f(u('uFocus'), P.cam.focus);
+  set3('uKeyDir', P.keyDir); set3('uKeyCol', P.keyCol); set3('uFillCol', P.fillCol); set3('uRimDir', P.rimDir); set3('uRimCol', P.rimCol);
+  gl.uniform1f(u('uDay'), P.day); gl.uniform1f(u('uSoft'), P.soft);
+  for (const [k, v] of Object.entries(P.colors)) set3(k, v);
+  gl.uniform3fv(u('cBokeh'), P.bokeh.flat());
+  gl.uniform1f(u('uRoast'), P.roast); gl.uniform1f(u('uTable'), P.table); gl.uniform1f(u('uVessel'), P.vessel || 0);
+  gl.uniform1f(u('uArtKind'), P.artKind || 0); gl.uniform1f(u('uIndex'), P.index);
+  gl.uniform4fv(u('uProps'), new Float32Array(48).map((_, i) => (P.props[Math.floor(i / 4)] || [0, 0, 0, 0])[i % 4]));
+  gl.uniform1i(u('uPropCount'), P.props.length);
+  if (P.cup) {
+    set3('uCupPos', P.cup.pos);
+    gl.uniform4fv(u('uCup'), P.cup.dims); gl.uniform4fv(u('uCupFlags'), P.cup.flags); gl.uniform4fv(u('uCupMore'), P.cup.more);
+    gl.uniform1f(u('uBulge'), P.cup.bulge);
+  }
+  gl.uniform4fv(u('uSpoon'), P.spoon || [0, 0, 0, 0]);
+  gl.uniform1f(u('uLogoK'), P.logoK || 164);
+  gl.uniform1f(u('uArtBias'), P.artBias ?? 1.0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, art); gl.uniform1i(u('uArt'), 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, logoTexture); gl.uniform1i(u('uLogo'), 1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, layerTex); gl.uniform1i(u('uLayers'), 2);
+  gl.activeTexture(gl.TEXTURE0);
+  if (logoInfo) gl.uniform4f(u('uLogoInfo'), logoInfo.w, logoInfo.h, logoInfo.scale, logoInfo.pad);
+
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.enable(gl.SCISSOR_TEST);
+  // Small tiles keep each draw call short. A long draw blocks the desktop
+  // compositor, and the kernel driver then resets the GPU.
+  const TILE = opts.tile || 128;
+  const probe = new Float32Array(4);
+  for (let s = 0; s < samples; s++) {
+    const jx = halton(s + 1, 2) - .5, jy = halton(s + 1, 3) - .5;
+    const a = halton(s + 1, 5) * Math.PI * 2, r = Math.sqrt(halton(s + 1, 7));
+    gl.uniform2f(u('uJitter'), jx, jy);
+    gl.uniform2f(u('uLens'), Math.cos(a) * r, Math.sin(a) * r);
+    gl.uniform1f(u('uSeed'), s * 17.31);
+    let batch = 0;
+    for (let y = 0; y < height; y += TILE) for (let x = 0; x < width; x += TILE) {
+      gl.scissor(x, y, Math.min(TILE, width - x), Math.min(TILE, height - y));
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      // Reading 1 pixel waits for the GPU, so the driver gets many short jobs.
+      // gl.finish() alone lets the draws pile up into one job, and the kernel
+      // resets the GPU when a job runs longer than 5 seconds.
+      if (++batch % 8 === 0) gl.readPixels(x, y, 1, 1, gl.RGBA, gl.FLOAT, probe);
+    }
+    if (gl.isContextLost()) throw new Error(`The GPU context was lost at sample ${s + 1}`);
+    // Let the page breathe between samples.
+    await new Promise(res => setTimeout(res, 0));
+  }
+  gl.disable(gl.BLEND); gl.disable(gl.SCISSOR_TEST);
+
+  // Post pass into an 8-bit target, then read back in strips.
+  const out = texture(width, height, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE);
+  const fbo2 = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo2);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+  gl.useProgram(post);
+  const pu = n => gl.getUniformLocation(post, n);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, accum); gl.uniform1i(pu('uAccum'), 0);
+  gl.uniform1f(pu('uSamples'), samples); gl.uniform1f(pu('uDay'), P.day); gl.uniform1f(pu('uSeed'), P.index * 3.7);
+  gl.uniform2f(pu('uRes'), width, height);
+  gl.uniform3fv(pu('cShadow'), P.grade.shadow); gl.uniform3fv(pu('cHigh'), P.grade.high);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  const c2 = document.createElement('canvas'); c2.width = width; c2.height = height;
+  const ctx = c2.getContext('2d');
+  const STRIP = 256, buf = new Uint8Array(width * STRIP * 4);
+  for (let y = 0; y < height; y += STRIP) {
+    const h = Math.min(STRIP, height - y);
+    gl.readPixels(0, y, width, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const img = ctx.createImageData(width, h);
+    for (let row = 0; row < h; row++) img.data.set(buf.subarray(row * width * 4, (row + 1) * width * 4), (h - 1 - row) * width * 4);
+    ctx.putImageData(img, 0, height - y - h);
+  }
+  [accum, out, art, layerTex].forEach(t => t && gl.deleteTexture(t));
+  gl.deleteFramebuffer(fbo); gl.deleteFramebuffer(fbo2);
+  return c2.toDataURL('image/jpeg', opts.quality || .9);
+};
+
+// ---------- scene parameters ----------
+
+// Cups and glasses: bottom and top radius, height and wall in cm, a handle,
+// a saucer radius, a glass flag, the stem of a stemmed glass, the level of
+// the drink, the bulge of the profile and the material.
+const VESSELS = {
+  cup: { rb: 2.0, rt: 3.6, h: 3.4, wall: .22, handle: 1, saucer: 6.6, level: .86, bulge: .3 },
+  demitasse: { rb: 1.4, rt: 2.4, h: 2.5, wall: .2, handle: 1, saucer: 4.6, level: .8, bulge: .2 },
+  mug: { rb: 3.2, rt: 3.4, h: 5.0, wall: .28, handle: 1, saucer: 0, level: .88, bulge: .05 },
+  enamel: { rb: 3.1, rt: 3.3, h: 4.6, wall: .14, handle: 1, saucer: 0, level: .86, bulge: 0, mat: 1 },
+  bowl: { rb: 2.0, rt: 4.8, h: 3.0, wall: .22, handle: 0, saucer: 0, level: .82, bulge: .35 },
+  clay: { rb: 2.8, rt: 3.2, h: 4.6, wall: .3, handle: 1, saucer: 0, level: .85, bulge: .45, mat: 2 },
+  finjan: { rb: 1.5, rt: 2.3, h: 2.2, wall: .18, handle: 0, saucer: 4.2, level: .8, bulge: .1 },
+  guksi: { rb: 2.4, rt: 3.8, h: 3.0, wall: .3, handle: 1, saucer: 0, level: .8, bulge: .3, mat: 3 },
+  glass: { rb: 2.5, rt: 2.9, h: 4.0, wall: .14, glass: 1, level: .9, bulge: 0 },
+  tall: { rb: 2.3, rt: 2.8, h: 8.0, wall: .14, glass: 1, level: .92, bulge: 0 },
+  tumbler: { rb: 2.9, rt: 3.4, h: 5.5, wall: .15, glass: 1, level: .9, bulge: 0 },
+  stemmed: { rb: 2.4, rt: 3.0, h: 5.0, wall: .14, glass: 1, stem: 2.2, level: .9, bulge: .1 },
+  coupe: { rb: .8, rt: 4.2, h: 2.4, wall: .14, glass: 1, stem: 3.0, level: .55, bulge: .2 },
+  hero: { rb: 2.4, rt: 4.3, h: 3.8, wall: .24, handle: 1, saucer: 7.6, level: .86, bulge: .3 },
+};
+const ART_KIND = { cream: 1, candy: 1, spice: 1, ice: 2, icelemon: 2, affogato: 3, cheese: 4, dalgona: 7 };
+
+function cupParams(vesselName, pos, r) {
+  const v = VESSELS[vesselName] || VESSELS.cup;
+  return {
+    v, pos,
+    dims: [v.rb, v.rt, v.h, v.wall],
+    flags: [v.handle ? 1 : 0, v.saucer ? 1 : 0, v.glass ? 1 : 0, v.level],
+    more: [v.saucer || 0, -.55 + (r() - .5) * .5, v.mat || 0, v.stem || 0],
+    bulge: v.bulge,
+  };
+}
+
+// Beans scattered on the table, away from a circle around the cup.
+function scatterBeans(r, count, cx, cz, keep, area) {
+  const list = [];
+  for (let i = 0; i < 400 && list.length < count; i++) {
+    const x = cx + (r() - .5) * area[0], z = cz + (r() - .5) * area[1];
+    if (Math.hypot(x - cx, z - cz) < keep) continue;
+    if (list.some(b => Math.hypot(b[0] - x, b[1] - z) < 1.3)) continue;
+    list.push([x, z, r() * 6.283, r() < .7 ? -1 : 1]);
+  }
+  return list;
+}
+
+function params(opts) {
+  const t = opts.theme, c = t.colors, day = c.mode === 'light';
+  const r = rng(t.index * 7919 + (day ? 3 : 0) + opts.scene.length * 101);
+  const accent = lin(c.accent), second = lin(t.second);
+  const bean = lin(mix(roastColor(t.roast), c.accent, .05));
+  const tableKinds = day ? [2, 3, 4] : [0, 1, 0];
+  const table = tableKinds[t.index % 3];
+  let tableA, tableB;
+  if (table === 0) { tableA = mix(c.darker_background, roastColor(.92), .6); tableB = mix(c.background, roastColor(.62), .5); }
+  else if (table === 1) { tableA = mix(c.darker_background, '#1c1e20', .55); tableB = mix(c.background, '#34363a', .55); }
+  else if (table === 2) { tableA = mix(c.background, '#ffffff', .65); tableB = mix(mix(c.muted, '#8a8580', .5), c.accent, .1); }
+  else if (table === 3) { tableA = mix(c.background, '#ffffff', .3); tableB = mix(c.background, c.muted, .3); }
+  else { tableA = mix(c.background, roastColor(.12), .4); tableB = mix(c.background, '#ffffff', .45); }
+  let glaze = day ? mix('#f7f3ee', c.accent, .07) : mix(mix(c.background, c.foreground, .2), c.accent, .12);
+  if (opts.scene === 'wordmark') glaze = day ? mix(c.accent, '#ffffff', .12) : mix(c.accent, c.background, .1);
+  const coffee = mix(roastColor(t.roast * .8 + .2), c.accent, .04);
+  const crema = mix(mix(roastColor(.15), '#c8843a', .5), c.accent, .18);
+  const milk = day ? mix('#fbf6ee', c.background, .2) : mix('#efe4d2', c.background, .1);
+  const warm = [1.0, .84, .66], daylight = [1.0, .98, .95];
+  const P = {
+    day: day ? 1 : 0, index: t.index, roast: t.roast, table,
+    soft: day ? 6 : 12,
+    keyDir: day ? [-.6, .85, .5] : [-.85, .5, -.3],
+    keyCol: day ? daylight.map(v => v * 2.3) : warm.map(v => v * 2.6),
+    fillCol: day ? [.36, .37, .40] : lin(c.background).map(v => v * 1.2 + .01),
+    rimDir: day ? [.6, .4, -.7] : [.75, .45, -.55],
+    rimCol: day ? [.12, .12, .12] : accent.map(v => v * .6),
+    colors: {
+      cBg: lin(c.background), cDark: lin(c.darker_background), cFg: lin(c.foreground), cAccent: accent, cSecond: second,
+      cGlaze: lin(glaze), cTableA: lin(tableA), cTableB: lin(tableB), cBean: bean,
+      cCoffee: lin(coffee), cCrema: lin(crema), cMilk: lin(milk),
+    },
+    bokeh: [c.accent, t.second, '#ffd8a0', '#ffe9c9', t.ansi[3], t.ansi[11]].map(h => lin(h || '#ffd8a0')),
+    grade: { shadow: lin(mix(c.darker_background, '#808080', .5)), high: lin(mix(c.accent, '#ffffff', .7)) },
+    props: [], artKind: 0,
+    cam: { pos: [0, 2.4, 9.5], target: [0, .2, 0], focal: 2.2, aperture: .14, focus: 9.3 },
+  };
+  const look = (pos, target, focal, aperture) => ({ pos, target, focal, aperture, focus: Math.hypot(...pos.map((v, i) => v - target[i])) });
+
+  if (opts.scene === 'beans') {
+    P.cam = look([0, 2.8 + r() * .5, 8.6], [(r() - .5) * 1.5, .05, 0], 2.4, .16);
+    if (day) { P.keyDir = [-.5, 1.0, .35]; P.table = 4; }
+  } else if (opts.scene === 'latte' || opts.scene === 'top') {
+    const top = opts.scene === 'top';
+    const cup = cupParams(top ? 'hero' : t.vessel, [0, 0, 0], r);
+    P.cup = cup;
+    P.artKind = top ? 0 : (ART_KIND[t.art] || 0);
+    P.artBias = top ? .4 : 1.0;
+    const v = cup.v, base = v.saucer ? .18 : 0, liquidY = base + (v.stem || 0) + v.wall + (v.h - v.wall) * v.level;
+    const R = v.saucer || v.rt + 1;
+    if (top) {
+      // The steam video expects the liquid at the middle of the frame, 20 px
+      // low at 3840 x 2160, with a radius of 702 px.
+      const focal = 3.0, rLiq = v.rt - v.wall + v.bulge * Math.sin(Math.PI * v.level);
+      const height = rLiq * focal / (702 / 1080);
+      P.cam = { pos: [0, liquidY + height, .001], target: [0, 0, 0], focal, aperture: .0, focus: height };
+      P.cam.target = [0, 0, -20 / 1080 * height / focal * 1.0];
+      P.cam.pos[2] = P.cam.target[2] + .001;
+      P.spoon = [R + 2.6, 2.4, -1.95, 1];
+      // A high lamp keeps the shadow of the rim narrow, so it does not
+      // cover the wordmark.
+      if (!day) P.keyDir = [-.6, .75, -.3];
+    } else {
+      const span = Math.max(v.h + (v.stem || 0), R * .9);
+      const dist = 7.5 + span * 1.25;
+      // Stemmed glasses get a lower camera, so their shape shows.
+      const lift = v.stem ? .5 : .78;
+      P.cam = look([-1.4, liquidY * .6 + dist * lift, dist * .72], [-3.2, liquidY * .55, .6], 2.5, day ? .22 : .26);
+      if (v.saucer) { const a = .35 + r() * .3; P.spoon = [Math.cos(a) * R * .6, Math.sin(a) * R * .6 + .3, -a, 1]; }
+      else P.spoon = [R + 2.0, 3.2 + r(), -.4 - r() * .3, 1];
+    }
+    P.props = scatterBeans(r, top ? 9 : 7, 0, 0, R + 1.0, top ? [44, 26] : [36, 22]);
+    if (!top && (t.art === 'lemon' || t.art === 'icelemon')) P.props.unshift(v.saucer ? [-R * .55, R * .45, 0, -2] : [-R - 1.6, 2.0, 0, -2]);
+    if (!top && (t.art === 'cinnamon' || t.art === 'chai')) P.props.unshift([-R - 2.4, 1.6, .5, 2]);
+    P.props = P.props.slice(0, 12);
+    if (day) P.keyDir = [-.65, .9, .35];
+  } else if (opts.scene === 'crema') {
+    P.cam = look([0, 3.8, 5.0], [0, 0, -1.2], 2.5, .1);
+    P.keyCol = P.keyCol.map(v => v * .85);
+    P.keyDir = day ? [-.35, .8, -.5] : [-.25, .55, -.8];
+  } else if (opts.scene === 'wordmark') {
+    P.logoK = 1215 / 58;
+    P.cam = look([0, 30, 23], [0, 0, 1.2], 2.15, .3);
+    P.keyDir = day ? [-.55, .85, .45] : [-.8, .55, -.25];
+  }
+  return P;
+}
+</script>
+</body>
+</html>
