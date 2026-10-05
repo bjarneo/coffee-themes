@@ -250,7 +250,7 @@ node tools/readme.mjs
 
 \`tools/capture.sh\` takes about 25 minutes. It changes the theme of the desktop 164 times and shows workspace 8 the whole time. Open the windows that you want in the screenshots on workspace 8 first. If you switch to another workspace, the script stops and restores your theme. Run it again to continue where it stopped.
 
-\`tools/photo.mjs\` takes about 1.5 hours for all 656 photos. It draws small tiles and waits for the GPU after every 8 tiles. Some GPU drivers reset the GPU when one job runs longer than 5 seconds.
+\`tools/photo.mjs\` takes about 3 hours for all 656 photos on an Intel Arc GPU. It draws small tiles and waits for the GPU after every 8 tiles. Some GPU drivers reset the GPU when one job runs longer than 5 seconds.
 
 To change a drink, edit its row in \`tools/palettes.mjs\`, then run the scripts with the theme name, for example \`node tools/photo.mjs mocha\` and \`tools/capture.sh mocha\`.
 

@@ -2,12 +2,12 @@
 
 [![All 164 themes, from the darkest night to the lightest day.](site/assets/mosaic.jpg)](https://bjarneo.github.io/coffee-themes)
 
-This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso to Italian roast. Each theme has a night variant and a day variant. That makes 164 Omarchy themes. Each variant has a 16-color ANSI palette, 5 backgrounds at 6K and 2 animated backgrounds.
+This repo has 82 coffee themes for [Omarchy](https://omarchy.org), from espresso to Italian roast. Each theme has a night variant and a day variant. That makes 164 Omarchy themes. Each variant has a 16-color ANSI palette, 5 backgrounds at 6K and a steam video.
 
 - Site: [bjarneo.github.io/coffee-themes](https://bjarneo.github.io/coffee-themes)
 - Promo video: [`site/assets/promo.mp4`](site/assets/promo.mp4), all 82 drinks, one per beat
 - Screenshots: real captures of an Omarchy desktop with each variant applied
-- Backgrounds: 820 images at 6K, 6144×3456, and 328 videos at 3840×2160
+- Backgrounds: 820 images at 6K, 6144×3456, and 164 steam videos at 3840×2160
 
 ## Variants
 
@@ -28,17 +28,18 @@ Signature palettes: [Espresso Solo](#espresso-solo), [Ristretto](#ristretto), [M
 
 ## Backgrounds
 
-Each variant has 7 backgrounds: 5 images and 2 videos. Omarchy shows them in this order. To show the next one, run `omarchy theme bg next`.
+Each variant has 6 backgrounds: 5 images and 1 video. Omarchy shows them in this order. To show the next one, run `omarchy theme bg next`.
 
 | File | What it shows |
 | --- | --- |
-| `0-omarchy-wordmark.jpg` | The Omarchy wordmark with coffee ring stains. The ANSI colors sit under it as coffee beans. |
-| `1-latte-art.jpg` | A top view of the drink on a table: latte art, crema, cream, ice or cocoa dust. |
+| `0-omarchy-wordmark.jpg` | The Omarchy wordmark spelled in roasted coffee beans on a table. |
+| `1-latte-art.jpg` | The drink in its cup or glass on a table: latte art, ice, whipped cream, or the layers of the recipe through the glass. |
 | `2-recipe.jpg` | A cross-section of the drink with the share of each part. Roast levels show the roast curve. Coffee beans show a coffee cherry. |
-| `3-crema-swirl.jpg` | Cream that swirls into coffee, with a thin ribbon of the accent color. |
-| `4-coffee-beans.jpg` | Roasted beans in the roast color of the theme. |
-| `5-steam.mp4` | A 12 second loop at 3840×2160. The Omarchy wordmark is latte art in a cappuccino, and steam drifts over the cup. |
-| `6-pour.mp4` | A 37 second loop at 3840×2160. It shows the 5 images in turn, and each one pours into the next behind a creamy milk front, like the transition of the promo video. |
+| `3-crema-swirl.jpg` | A close-up of cream that swirls into coffee. |
+| `4-coffee-beans.jpg` | Roasted beans in the roast color of the theme, from a low angle with a shallow focus. |
+| `5-steam.mp4` | A 12 second loop at 3840×2160. The Omarchy wordmark is latte art in a cappuccino, seen from above, and steam drifts over the cup. |
+
+The wordmark, the drink, the crema swirl, the beans and the cup of the steam video are photographic renders. The GPU ray-marches each 3D scene with soft shadows, reflections and depth of field. The recipe is a flat drawing.
 
 ## Install
 
@@ -69,7 +70,7 @@ cd ~/.local/share/coffee-themes
 omarchy theme set mocha-night
 ```
 
-The full repo is about 2100 MB because it has 820 backgrounds at 6K. To download less, use the `curl` command above. It downloads only the folders that you name.
+The full repo is about 2090 MB because it has 820 backgrounds at 6K. To download less, use the `curl` command above. It downloads only the folders that you name.
 
 ### Options
 
@@ -2364,15 +2365,15 @@ curl -fsSL https://bjarneo.github.io/coffee-themes/install.sh | bash -s -- itali
 
 ## How the themes are made
 
-The scripts in [`tools/`](tools/) make every file in this repo. They need Node.js 22 or later, Chromium, ImageMagick and ffmpeg. `tools/capture.sh` also needs Omarchy, Hyprland and grim.
+The scripts in [`tools/`](tools/) make every file in this repo. They need Node.js 22 or later, Chromium, ImageMagick and ffmpeg. `tools/photo.mjs` and `tools/steam.mjs` also need a GPU that Chromium can use through Vulkan. `tools/capture.sh` also needs Omarchy, Hyprland and grim.
 
 | Script | Output |
 | --- | --- |
 | `tools/palettes.mjs` | The drink table and the color math. Every other script reads it. |
 | `tools/build.mjs` | `colors.toml` and `icons.theme` of each variant, and `site/assets/themes.js` |
-| `tools/render.mjs` | The 5 backgrounds of each variant at 6K. `tools/render.html` draws them on a canvas. |
-| `tools/steam.mjs` | The steam video of each variant. `tools/steam.html` draws the steam once, `tools/render.html` draws the cup, and ffmpeg lays the steam over the cup. |
-| `tools/pour.mjs` | The pour video of each variant. `tools/pour.html` draws the pour once, and ffmpeg pours each image into the next. |
+| `tools/render.mjs` | The recipe background of each variant at 6K. `tools/render.html` draws it on a canvas, and it also draws the surface and the layers of each drink for the photos. |
+| `tools/photo.mjs` | The 4 photographic backgrounds of each variant at 6K. `tools/photo.html` ray-marches the 3D scenes on the GPU. |
+| `tools/steam.mjs` | The steam video of each variant. `tools/steam.html` draws the steam once, `tools/photo.html` renders the cup from above, and ffmpeg lays the steam over the cup. |
 | `tools/capture.sh` | `preview.png` of each variant and the site screenshots. It applies each variant on this desktop and takes a screenshot of workspace 8. |
 | `tools/assets.mjs` | The site previews, the thumbnails, the Aether copies and the mosaic |
 | `tools/promo.mjs` | `site/assets/promo.mp4`. `tools/promo.html` draws the frames. |
@@ -2383,8 +2384,8 @@ To build everything again, run the scripts in this order:
 ```bash
 node tools/build.mjs
 node tools/render.mjs
+node tools/photo.mjs
 node tools/steam.mjs
-node tools/pour.mjs
 tools/capture.sh
 node tools/assets.mjs
 node tools/promo.mjs song.mp3
@@ -2393,6 +2394,8 @@ node tools/readme.mjs
 
 `tools/capture.sh` takes about 25 minutes. It changes the theme of the desktop 164 times and shows workspace 8 the whole time. Open the windows that you want in the screenshots on workspace 8 first. If you switch to another workspace, the script stops and restores your theme. Run it again to continue where it stopped.
 
-To change a drink, edit its row in `tools/palettes.mjs`, then run the scripts with the theme name, for example `node tools/render.mjs mocha` and `tools/capture.sh mocha`.
+`tools/photo.mjs` takes about 3 hours for all 656 photos on an Intel Arc GPU. It draws small tiles and waits for the GPU after every 8 tiles. Some GPU drivers reset the GPU when one job runs longer than 5 seconds.
+
+To change a drink, edit its row in `tools/palettes.mjs`, then run the scripts with the theme name, for example `node tools/photo.mjs mocha` and `tools/capture.sh mocha`.
 
 The site in [`site/`](site/) is a static page. The workflow in `.github/workflows/pages.yml` copies `install.sh` and every `colors.toml` into it and publishes it to GitHub Pages.
